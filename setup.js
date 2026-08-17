@@ -73,10 +73,20 @@ keyElements.forEach(keyEl => {
 });
 
 // 実際のキーボードを叩いたとき
+// 実際のキーボードを叩いたとき
 document.addEventListener('keydown', (e) => {
   if (currentStep === 1 && wizardScreen.style.display !== 'none') {
-    const keyChar = e.key.toUpperCase();
-    // 入力された文字に対応するキー要素を探す
+    let keyChar = '';
+
+    // スペースキーが押された場合の判定
+    if (e.key === ' ' || e.code === 'Space') {
+      e.preventDefault(); // 画面が下にスクロールするのを防ぐ
+      keyChar = 'SPACE';
+    } else {
+      keyChar = e.key.toUpperCase();
+    }
+
+    // 入力されたキーに対応するボタンを探す
     const keyEl = document.querySelector(`.key[data-key="${keyChar}"]`);
     
     if (keyEl) {

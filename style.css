@@ -210,3 +210,14 @@ button:hover:not(:disabled) {
 .btn-small:hover {
   background-color: #5a6268;
 }
+
+/* スペースキー用のスタイル */
+.space-row {
+  justify-content: center;
+  margin-left: 0 !important; /* ずらし解除 */
+}
+
+.key.space-key {
+  width: 180px; /* 横長にする */
+  font-size: 0.85rem;
+}
