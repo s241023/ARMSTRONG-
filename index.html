@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARMSTRONG</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    
+    <!-- 1. 復元確認画面 -->
+    <div id="confirm-screen" style="display: none;">
+      <h2>保存された設定</h2>
+      <p>前回保存された設定があります。このまま開始しますか？</p>
+      
+      <div class="saved-info">
+        <p><strong>使用する手:</strong> <span id="confirm-hands"></span></p>
+        <p><strong>ホームポジション:</strong> <span id="confirm-keys"></span></p>
+      </div>
+      
+      <div class="buttons">
+        <button id="resetBtn" class="btn-danger">やり直す</button>
+        <button id="startBtn" class="btn-success">この設定で開始</button>
+      </div>
+    </div>
+
+    <!-- 2. 初期設定ウィザード画面 -->
+    <div id="wizard-screen" style="display: none;">
+      <!-- ステップ 1 -->
+      <div class="step active" id="step-1">
+        <h2>ステップ 1: 使用する手</h2>
+        <p>該当する選択肢を選んでください。</p>
+        <select id="usehands">
+          <option value="right">右手のみ</option>
+          <option value="left">左手のみ</option>
+          <option value="r&l">両手</option>
+        </select>
+      </div>
+
+      <!-- ステップ 2: キーボード設定（座標対応版） -->
+      <div class="step" id="step-2">
+        <h2>ステップ 2: ホームポジション</h2>
+        <p>指を置くキーを選んでください（最大10個）。</p>
+        <p>※位置をわかりやすくするためにQWERTY配列で表示していますが、ほかの配列でも問題なく使用可能です。</p>
+        <div class="keyboard">
+          <!-- 1段目 (y = 0) -->
+          <div class="keyboard-row">
+            <button class="key" data-key="Q" data-coord="[0,0]">Q</button>
+            <button class="key" data-key="W" data-coord="[1,0]">W</button>
+            <button class="key" data-key="E" data-coord="[2,0]">E</button>
+            <button class="key" data-key="R" data-coord="[3,0]">R</button>
+            <button class="key" data-key="T" data-coord="[4,0]">T</button>
+            <button class="key" data-key="Y" data-coord="[5,0]">Y</button>
+            <button class="key" data-key="U" data-coord="[6,0]">U</button>
+            <button class="key" data-key="I" data-coord="[7,0]">I</button>
+            <button class="key" data-key="O" data-coord="[8,0]">O</button>
+            <button class="key" data-key="P" data-coord="[9,0]">P</button>
+          </div>
+          <!-- 2段目 (y = 1) -->
+          <div class="keyboard-row">
+            <button class="key" data-key="A" data-coord="[0,1]">A</button>
+            <button class="key" data-key="S" data-coord="[1,1]">S</button>
+            <button class="key" data-key="D" data-coord="[2,1]">D</button>
+            <button class="key" data-key="F" data-coord="[3,1]">F</button>
+            <button class="key" data-key="G" data-coord="[4,1]">G</button>
+            <button class="key" data-key="H" data-coord="[5,1]">H</button>
+            <button class="key" data-key="J" data-coord="[6,1]">J</button>
+            <button class="key" data-key="K" data-coord="[7,1]">K</button>
+            <button class="key" data-key="L" data-coord="[8,1]">L</button>
+            <button class="key" data-key=";" data-coord="[9,1]">;</button>
+          </div>
+          <!-- 3段目 (y = 2) -->
+          <div class="keyboard-row">
+            <button class="key" data-key="Z" data-coord="[0,2]">Z</button>
+            <button class="key" data-key="X" data-coord="[1,2]">X</button>
+            <button class="key" data-key="C" data-coord="[2,2]">C</button>
+            <button class="key" data-key="V" data-coord="[3,2]">V</button>
+            <button class="key" data-key="B" data-coord="[4,2]">B</button>
+            <button class="key" data-key="N" data-coord="[5,2]">N</button>
+            <button class="key" data-key="M" data-coord="[6,2]">M</button>
+            <button class="key" data-key="," data-coord="[7,2]">,</button>
+            <button class="key" data-key="." data-coord="[8,2]">.</button>
+            <button class="key" data-key="/" data-coord="[9,2]">/</button>
+          </div>
+        </div>
+        <p class="selected-keys-text">記憶される座標: <span id="selected-keys-display">なし</span></p>
+      </div>
+
+      <!-- ステップ 3 -->
+      <div class="step" id="step-3">
+        <h2>設定完了</h2>
+        <p>すべての入力が完了しました。設定を保存してください。</p>
+      </div>
+      
+      <!-- ボタン群 -->
+      <div class="buttons">
+        <button id="prevBtn" disabled>戻る</button>
+        <button id="nextBtn">次へ</button>
+        <button id="saveBtn" style="display: none;" class="btn-success">保存して完了</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="setup.js"></script>
+</body>
+</html>
