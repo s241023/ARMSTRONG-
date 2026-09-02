@@ -269,3 +269,37 @@ button:hover:not(:disabled) {
   border-color: #218838 !important;
   box-shadow: 0 0 5px rgba(40, 167, 69, 0.5) !important;
 }
+
+/* --- ステップ5: マッピング修正用のスタイル --- */
+#mapping-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.mapping-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.mapping-key-label {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: #333;
+}
+
+.mapping-select {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  font-size: 1rem;
+  background-color: #f8f9fa;
+  cursor: pointer;
+}

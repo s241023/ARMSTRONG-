@@ -39,7 +39,7 @@
 
       <div class="step" id="step-2">
         <h2>ステップ 2: ホームポジション</h2>
-        <p>指を置くキーを選んでください（最大10個）。</p>
+        <p>指を置くキーを選んでください(最大10個)。</p>
         <div class="keyboard">
           <div class="keyboard-row">
             <button class="key" data-key="Q" data-coord="[0,0]">Q</button><button class="key" data-key="W" data-coord="[1,0]">W</button><button class="key" data-key="E" data-coord="[2,0]">E</button><button class="key" data-key="R" data-coord="[3,0]">R</button><button class="key" data-key="T" data-coord="[4,0]">T</button><button class="key" data-key="Y" data-coord="[5,0]">Y</button><button class="key" data-key="U" data-coord="[6,0]">U</button><button class="key" data-key="I" data-coord="[7,0]">I</button><button class="key" data-key="O" data-coord="[8,0]">O</button><button class="key" data-key="P" data-coord="[9,0]">P</button>
@@ -83,7 +83,17 @@
         </div>
       </div>
 
+      <!-- 🟢 ステップ 5: 割り当ての確認と修正 (新規追加) -->
       <div class="step" id="step-5">
+        <h2>ステップ 5: 割り当ての確認と修正</h2>
+        <p>自動計算された指の割り当てです。違う部分はドロップダウンから修正してください。</p>
+        <div id="mapping-edit-container">
+          <!-- JSでここにリストが生成されます -->
+        </div>
+      </div>
+
+      <!-- ステップ 6: 設定完了 (旧ステップ5からIDを変更) -->
+      <div class="step" id="step-6">
         <h2>設定完了</h2>
         <p>すべての入力が完了しました。設定を保存してください。</p>
       </div>
