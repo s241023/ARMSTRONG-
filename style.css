@@ -222,3 +222,50 @@ button:hover:not(:disabled) {
   width: 180px; /* 横長にする */
   font-size: 0.85rem;
 }
+
+/* --- ステップ3用のキースタイル --- */
+.key.disabled-key {
+  background-color: #f8f9fa !important;
+  color: #ced4da !important;
+  border-color: #e9ecef !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+/* --- 指選択ボタン用のスタイル --- */
+.finger-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 15px 0;
+}
+
+.finger-btn {
+  background-color: #e9ecef;
+  color: #555;
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 2px solid transparent;
+  font-size: 0.85rem;
+}
+
+/* 押して「使用しない」状態になったボタン */
+.finger-btn.selected-finger {
+  background-color: #dc3545; /* 赤色で無効化をアピール */
+  color: white;
+  border-color: #a71d2a;
+}
+.key.available-base-key {
+  background-color: #e7f1ff;
+  border-color: #007bff;
+  color: #007bff;
+}
+
+/* 基準として選ばれたキーは緑色にする */
+.key.selected-base {
+  background-color: #28a745 !important;
+  color: white !important;
+  border-color: #218838 !important;
+  box-shadow: 0 0 5px rgba(40, 167, 69, 0.5) !important;
+}
