@@ -42,12 +42,30 @@ fileInput.addEventListener('change', () => {
   }
 });
 
-// 送信ボタンの処理
 sendBtn.addEventListener('click', () => {
   const file = fileInput.files[0];
+  
   if (file) {
-    // 本来はここでサーバーにファイルを送ったり、ファイルの中身を読み込む処理を書きます
+    // 1. 許可する拡張子のリスト
+    const allowedExtensions = ['.keylog2'];
+    
+    // 2. ファイル名から拡張子をチェック
+    const fileName = file.name.toLowerCase();
+    const isValid = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    // 3. 拡張子がダメだった場合、アラートを出して終了
+    if (!isValid) {
+      alert('許可されていないファイル形式です。.keylog2 を選択してください。');
+      fileInput.value = ''; // ファイル選択をリセット（必要に応じて）
+      return; // 👈 ここで処理を強制終了する（下のアラートには進まない）
+    }
+
+    // --- ここから通常のファイル送信・読み込み処理 ---
     alert(`「${file.name}」の送信処理を開始します！\n（ファイルサイズ: ${file.size} bytes）`);
+    
+  } else {
+    // ファイルが選択されていない場合の処理（任意）
+    alert('ファイルを選択してください。');
   }
 });
 
@@ -55,3 +73,4 @@ sendBtn.addEventListener('click', () => {
 changeSettingsBtn.addEventListener('click', () => {
   window.location.href = 'index.html';
 });
+

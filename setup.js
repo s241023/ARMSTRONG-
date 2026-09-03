@@ -252,16 +252,10 @@ function buildStep5() {
   const container = document.getElementById('mapping-edit-container');
   container.innerHTML = '';
   
-  // ステップ1で選んだ手を取得
   const usehands = document.getElementById('usehands').value;
-  
-  // 自動計算を実行して currentMapping に初期値をセット
   currentMapping = calculateFingerMapping();
-  
-  // 選択されたキーをX座標順（左から右）に並び替え
   const sortedCoords = [...selectedCoords].sort((a, b) => JSON.parse(a)[0] - JSON.parse(b)[0]);
   
-  // 使用する手に応じてドロップダウンの選択肢を絞り込む
   let availableFingers = [];
   if (usehands === 'left' || usehands === 'r&l') {
     availableFingers.push(
@@ -276,7 +270,6 @@ function buildStep5() {
     );
   }
   
-  // 各キーに対する行を生成
   sortedCoords.forEach(coord => {
     const keyEl = document.querySelector(`#step-2 .key[data-coord="${coord}"]`);
     const keyName = keyEl ? keyEl.getAttribute('data-key') : coord;
@@ -286,34 +279,58 @@ function buildStep5() {
     
     const label = document.createElement('div');
     label.className = 'mapping-key-label';
-    // 「キー」という文字を消してアルファベットやSpaceのみにする
     label.textContent = keyName === 'SPACE' ? 'Space' : keyName;
     
     const select = document.createElement('select');
     select.className = 'mapping-select';
     
-    // 絞り込んだ指のリストからドロップダウンの中身を生成
     availableFingers.forEach(f => {
       const option = document.createElement('option');
       option.value = f.id;
       option.textContent = f.label;
       if (currentMapping[coord] === f.id) {
-        option.selected = true; // 自動計算された指を初期選択状態にする
+        option.selected = true;
       }
       select.appendChild(option);
     });
     
-    // ドロップダウンが変更されたら、確定用のデータを上書き
+    // ドロップダウンが変更されたらデータを上書きし、重複チェックを実行
     select.addEventListener('change', (e) => {
       currentMapping[coord] = e.target.value;
+      updateDuplicateWarnings();
     });
     
     row.appendChild(label);
     row.appendChild(select);
     container.appendChild(row);
   });
+
+  // 初期表示時にも重複チェックを実行
+  updateDuplicateWarnings();
 }
 
+// 🟢 重複している指を赤く強調表示する関数
+function updateDuplicateWarnings() {
+  const selects = document.querySelectorAll('.mapping-select');
+  const fingerCounts = {};
+  
+  // 各指が何回選ばれているかカウント
+  selects.forEach(select => {
+    const val = select.value;
+    fingerCounts[val] = (fingerCounts[val] || 0) + 1;
+  });
+
+  // 2回以上選ばれている指のドロップダウンを赤くする
+  selects.forEach(select => {
+    if (fingerCounts[select.value] > 1) {
+      select.style.color = '#d9534f'; // 赤色
+      select.style.fontWeight = 'bold';
+    } else {
+      select.style.color = '#333'; // デフォルト色
+      select.style.fontWeight = 'normal';
+    }
+  });
+}
 // --- 共通ユーティリティ ---
 function getBaseFingerName(side) {
   const priority = ['index', 'middle', 'ring', 'pinky', 'thumb'];
