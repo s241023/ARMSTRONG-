@@ -5,15 +5,14 @@ const prevBtn = document.getElementById('prevBtn');
 const saveBtn = document.getElementById('saveBtn');
 
 let currentStepIndex = 0;
-let activeSteps = []; 
+let activeSteps = []; // 実際に経由するステップの要素配列
 
 // キーボードと割り当て用の変数
 let selectedCoords = [];
-let baseCoordStep3 = null; 
-let baseCoordStep4 = null; 
+let baseCoordStep3 = null; // 右手(または片手)の基準キー
+let baseCoordStep4 = null; // 左手(両手時)の基準キー
 const maxKeys = 10;
 let unusedFingers = [];
-let currentMapping = {}; // 🟢 確定用のマッピングデータを保持する変数
 
 const fingerNames = {
   'right-thumb': '右親', 'right-index': '右人', 'right-middle': '右中', 'right-ring': '右薬', 'right-pinky': '右小',
@@ -29,10 +28,9 @@ function initSteps() {
     document.getElementById('step-3')
   ];
   if (usehands === 'r&l') {
-    activeSteps.push(document.getElementById('step-4')); 
+    activeSteps.push(document.getElementById('step-4')); // 両手ならステップ4を追加
   }
-  activeSteps.push(document.getElementById('step-5')); // 🟢 確認画面を追加
-  activeSteps.push(document.getElementById('step-6')); // 完了画面
+  activeSteps.push(document.getElementById('step-5')); // 完了画面
 }
 
 function updateUI() {
@@ -50,36 +48,33 @@ function updateUI() {
   }
 }
 
+// セレクトボックスが変更されたらステップ構成を再計算
 document.getElementById('usehands').addEventListener('change', initSteps);
 
-// --- ウィザードの進む・戻る (ロジックを整理) ---
+// --- ウィザードの進む・戻る ---
 nextBtn.addEventListener('click', () => {
   const currentStepElement = activeSteps[currentStepIndex];
+  const usehands = document.getElementById('usehands').value;
 
-  // バリデーションチェック
+  // バリデーションチェックと画面構築
   if (currentStepElement.id === 'step-2') {
     if (selectedCoords.length === 0) {
       alert('ホームポジションを1つ以上選択してください。'); return;
     }
+    buildStep3();
   } else if (currentStepElement.id === 'step-3') {
     if (!baseCoordStep3) {
       alert('基準となるキーを1つ選択してください。'); return;
     }
+    if (usehands === 'r&l') buildStep4();
   } else if (currentStepElement.id === 'step-4') {
     if (!baseCoordStep4) {
       alert('左手の基準となるキーを1つ選択してください。'); return;
     }
   }
 
-  // 次のステップへ進み、必要なUIを構築
   if (currentStepIndex < activeSteps.length - 1) {
     currentStepIndex++;
-    const nextStepElement = activeSteps[currentStepIndex];
-    
-    if (nextStepElement.id === 'step-3') buildStep3();
-    if (nextStepElement.id === 'step-4') buildStep4();
-    if (nextStepElement.id === 'step-5') buildStep5(); // 🟢 確認画面の生成処理を呼び出し
-    
     updateUI();
   }
 });
@@ -219,8 +214,9 @@ function buildStep4() {
     if (!selectedCoords.includes(coord)) {
       keyEl.classList.add('disabled-key'); keyEl.disabled = true;
     } else if (coord === baseCoordStep3) {
+      // 右手で選んだキーは左手では選べないようにする
       keyEl.classList.add('disabled-key'); keyEl.disabled = true;
-      keyEl.style.backgroundColor = '#d1e7dd'; 
+      keyEl.style.backgroundColor = '#d1e7dd'; // 緑っぽくして済マーク
       keyEl.textContent = '済';
     } else {
       keyEl.classList.add('available-base-key');
@@ -247,90 +243,7 @@ function toggleBaseKeyStep4(coordVal, element) {
   document.getElementById('base-keys-display-left').textContent = baseCoordStep4 || 'なし';
 }
 
-// 🟢 --- ステップ5: 割り当て確認・修正画面の生成 ---
-function buildStep5() {
-  const container = document.getElementById('mapping-edit-container');
-  container.innerHTML = '';
-  
-  const usehands = document.getElementById('usehands').value;
-  currentMapping = calculateFingerMapping();
-  const sortedCoords = [...selectedCoords].sort((a, b) => JSON.parse(a)[0] - JSON.parse(b)[0]);
-  
-  let availableFingers = [];
-  if (usehands === 'left' || usehands === 'r&l') {
-    availableFingers.push(
-      { id: 'left-pinky', label: '左小指' }, { id: 'left-ring', label: '左薬指' },
-      { id: 'left-middle', label: '左中指' }, { id: 'left-index', label: '左人差' }, { id: 'left-thumb', label: '左親指' }
-    );
-  }
-  if (usehands === 'right' || usehands === 'r&l') {
-    availableFingers.push(
-      { id: 'right-thumb', label: '右親指' }, { id: 'right-index', label: '右人差' },
-      { id: 'right-middle', label: '右中指' }, { id: 'right-ring', label: '右薬指' }, { id: 'right-pinky', label: '右小指' }
-    );
-  }
-  
-  sortedCoords.forEach(coord => {
-    const keyEl = document.querySelector(`#step-2 .key[data-coord="${coord}"]`);
-    const keyName = keyEl ? keyEl.getAttribute('data-key') : coord;
-    
-    const row = document.createElement('div');
-    row.className = 'mapping-row';
-    
-    const label = document.createElement('div');
-    label.className = 'mapping-key-label';
-    label.textContent = keyName === 'SPACE' ? 'Space' : keyName;
-    
-    const select = document.createElement('select');
-    select.className = 'mapping-select';
-    
-    availableFingers.forEach(f => {
-      const option = document.createElement('option');
-      option.value = f.id;
-      option.textContent = f.label;
-      if (currentMapping[coord] === f.id) {
-        option.selected = true;
-      }
-      select.appendChild(option);
-    });
-    
-    // ドロップダウンが変更されたらデータを上書きし、重複チェックを実行
-    select.addEventListener('change', (e) => {
-      currentMapping[coord] = e.target.value;
-      updateDuplicateWarnings();
-    });
-    
-    row.appendChild(label);
-    row.appendChild(select);
-    container.appendChild(row);
-  });
 
-  // 初期表示時にも重複チェックを実行
-  updateDuplicateWarnings();
-}
-
-// 🟢 重複している指を赤く強調表示する関数
-function updateDuplicateWarnings() {
-  const selects = document.querySelectorAll('.mapping-select');
-  const fingerCounts = {};
-  
-  // 各指が何回選ばれているかカウント
-  selects.forEach(select => {
-    const val = select.value;
-    fingerCounts[val] = (fingerCounts[val] || 0) + 1;
-  });
-
-  // 2回以上選ばれている指のドロップダウンを赤くする
-  selects.forEach(select => {
-    if (fingerCounts[select.value] > 1) {
-      select.style.color = '#d9534f'; // 赤色
-      select.style.fontWeight = 'bold';
-    } else {
-      select.style.color = '#333'; // デフォルト色
-      select.style.fontWeight = 'normal';
-    }
-  });
-}
 // --- 共通ユーティリティ ---
 function getBaseFingerName(side) {
   const priority = ['index', 'middle', 'ring', 'pinky', 'thumb'];
@@ -368,7 +281,8 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// --- 指の自動マッピング計算 ---
+
+// 🟢 --- 指の自動マッピング計算 ---
 function calculateFingerMapping() {
   const usehands = document.getElementById('usehands').value;
   let mapping = {}; 
@@ -402,6 +316,7 @@ function calculateFingerMapping() {
     let rightBaseIdx = sortedCoords.indexOf(baseCoordStep3);
     let leftBaseIdx = sortedCoords.indexOf(baseCoordStep4);
 
+    // 左右が逆転して選ばれた場合のフェイルセーフ（X座標が小さい方を左とみなす）
     if (leftBaseIdx > rightBaseIdx) [leftBaseIdx, rightBaseIdx] = [rightBaseIdx, leftBaseIdx];
 
     let leftFingers = ['left-index', 'left-middle', 'left-ring', 'left-pinky'].filter(f => !unusedFingers.includes(f));
@@ -411,6 +326,7 @@ function calculateFingerMapping() {
     let leftBaseFinger = `left-${getBaseFingerNameEng('left')}`;
     let rightBaseFinger = `right-${getBaseFingerNameEng('right')}`;
 
+    // 左手の割り当て (左基準キーから外側へ)
     mapping[sortedCoords[leftBaseIdx]] = leftBaseFinger;
     let lBaseIdxInArr = leftFingers.indexOf(leftBaseFinger);
     if(lBaseIdxInArr === -1) lBaseIdxInArr = 0;
@@ -419,6 +335,7 @@ function calculateFingerMapping() {
       mapping[sortedCoords[i]] = (fIdx < leftFingers.length) ? leftFingers[fIdx++] : (leftFingers[leftFingers.length - 1] || 'left-pinky');
     }
 
+    // 右手の割り当て (右基準キーから外側へ)
     mapping[sortedCoords[rightBaseIdx]] = rightBaseFinger;
     let rBaseIdxInArr = rightFingers.indexOf(rightBaseFinger);
     if(rBaseIdxInArr === -1) rBaseIdxInArr = 0;
@@ -427,6 +344,7 @@ function calculateFingerMapping() {
       mapping[sortedCoords[i]] = (fIdx < rightFingers.length) ? rightFingers[fIdx++] : (rightFingers[rightFingers.length - 1] || 'right-pinky');
     }
 
+    // 両基準の間 (親指)
     let thumbIdx = 0;
     for (let i = leftBaseIdx + 1; i < rightBaseIdx; i++) {
       mapping[sortedCoords[i]] = (thumbs.length > 0) ? thumbs[thumbIdx % thumbs.length] : 'thumb';
@@ -441,7 +359,7 @@ saveBtn.addEventListener('click', () => {
   const settingsData = {
     usehands: document.getElementById('usehands').value,
     homeCoords: selectedCoords,
-    fingerMapping: currentMapping // 🟢 修正結果が反映されたデータを保存
+    fingerMapping: calculateFingerMapping()
   };
   localStorage.setItem('appSettings', JSON.stringify(settingsData));
   window.location.href = 'main.html';
