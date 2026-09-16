@@ -5,7 +5,7 @@ const displayHands = document.getElementById('display-hands');
 const displayCoords = document.getElementById('display-coords');
 const changeSettingsBtn = document.getElementById('changeSettingsBtn');
 
-// ページ読み込み時にローカルストレージの設定を取得して表示し、最遠キーを計算する
+// ページ読み込み時にローカルストレージの設定を取得して表示する
 window.addEventListener('DOMContentLoaded', () => {
   const savedData = localStorage.getItem('appSettings');
   
@@ -20,7 +20,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
     displayHands.textContent = handsText;
     
-    // 座標の表示
+  // 座標の表示と最遠キーの計算
     if (settings.homeCoords && settings.homeCoords.length > 0) {
       displayCoords.textContent = settings.homeCoords.join(' , ');
 
@@ -31,12 +31,15 @@ window.addEventListener('DOMContentLoaded', () => {
       console.log('=== 各ホームポジションからの最遠キー計算結果 ===');
       console.table(distanceResults);
 
-      // クラウドストレージ用保存データ
+      // 保存するためのデータ形式
       const dataToSave = {
         calculatedAt: new Date().toISOString(),
         distanceResults: distanceResults
       };
-      // saveToCloudStorage(dataToSave); // クラウド連携時に使用
+      
+      // 🟢 appSettingsとは別のキー名（maxDistanceResults）でローカルストレージに保存
+      localStorage.setItem('maxDistanceResults', JSON.stringify(dataToSave));
+
     } else {
       displayCoords.textContent = '未設定';
     }
@@ -56,11 +59,102 @@ fileInput.addEventListener('change', () => {
   }
 });
 
-// 送信ボタンの処理
 sendBtn.addEventListener('click', () => {
   const file = fileInput.files[0];
+  
   if (file) {
-    alert(`「${file.name}」の送信処理を開始します！\n（ファイルサイズ: ${file.size} bytes）`);
+    const allowedExtensions = ['.keylog2'];
+    const fileName = file.name.toLowerCase();
+    const isValid = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!isValid) {
+      alert('許可されていないファイル形式です。.keylog2 を選択してください。');
+      fileInput.value = ''; 
+      return; 
+    }
+
+    // --- 1. UIの更新：ボタンを無効化し、プログレスバーを表示する ---
+    sendBtn.disabled = true; // 送信ボタンを押せなくする
+    
+    // プログレスバー（読み込みバー）の要素を取得、無ければ自動作成
+    let progressBar = document.getElementById('loadingBar');
+    if (!progressBar) {
+      progressBar = document.createElement('progress');
+      progressBar.id = 'loadingBar';
+      progressBar.max = 100; // 最大値
+      progressBar.value = 10; // 初期値
+      progressBar.style.marginLeft = '10px';
+      // 送信ボタンのすぐ後ろに追加
+      sendBtn.parentNode.insertBefore(progressBar, sendBtn.nextSibling);
+    }
+    progressBar.style.display = 'inline-block';
+    progressBar.value = 30; // ちょっとだけ進めておく
+
+    // --- 2. ファイルの読み込みと解析処理 ---
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+      progressBar.value = 70; // 読み込み完了時点でバーを進める
+      
+      const text = e.target.result;
+      
+      // 抽出用の変数を用意
+      let totalKeyCount = 0;
+      let normalKeys = {};
+      let specialKeys = {};
+      let shortcutKeys = {};
+
+      // ① 「総キー押下イベント数」を取得
+      const totalMatch = text.match(/総キー押下イベント数:\s*(\d+)/);
+      if (totalMatch) {
+        totalKeyCount = parseInt(totalMatch[1], 10);
+      }
+
+      // ② [{ ... }] のブロックを3つ抽出[cite: 4]
+      const arrayMatches = text.match(/\[\{(.*?)\}\]/g);
+      
+      if (arrayMatches && arrayMatches.length >= 3) {
+        // "キー名: 回数" の文字列をオブジェクト(辞書型)に変換する関数
+        const parseBlock = (blockStr) => {
+          const obj = {};
+          // 正規表現で「カンマやスペース以外の文字」と「数字」のペアを探す
+          const regex = /([^,\s{}[\]]+):\s*(\d+)/g;
+          let m;
+          while ((m = regex.exec(blockStr)) !== null) {
+            obj[m[1]] = parseInt(m[2], 10);
+          }
+          return obj;
+        };
+
+        // それぞれのブロックをパースして変数に格納
+        normalKeys = parseBlock(arrayMatches[0]);
+        specialKeys = parseBlock(arrayMatches[1]);
+        shortcutKeys = parseBlock(arrayMatches[2]);
+      }
+
+      progressBar.value = 100; // 解析完了でバーをMAXに
+
+      // --- 3. コンソールへ結果を出力 ---
+      console.log('=== Keylog2 解析結果 ===');
+      console.log('合計のキーを押した数:', totalKeyCount);
+      console.log('通常キー:', normalKeys);
+      console.log('特殊キー:', specialKeys);
+      console.log('ショートカット:', shortcutKeys);
+
+      // --- 4. 処理完了後の後片付け（1秒後にバーを消してボタンを戻す） ---
+      setTimeout(() => {
+        progressBar.style.display = 'none';
+        sendBtn.disabled = false;
+        alert('ファイルの解析が完了しました！コンソールを確認してください。');
+      }, 500);
+      
+    };
+
+    // テキストとしてファイルを読み込む
+    reader.readAsText(file);
+    
+  } else {
+    alert('ファイルを選択してください。');
   }
 });
 
@@ -76,7 +170,7 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
     'right-thumb': '右親指', 'right-index': '右人差', 'right-middle': '右中指', 'right-ring': '右薬指', 'right-pinky': '右小指'
   };
 
-  // main.html側にキーボード描画が無い場合でも計算できるフォールバック座標データ
+  // メイン画面側にキーボード描画が無い場合でも計算できるようにするためのフォールバック用キー情報
   const defaultLayout = [
     { coordStr: '[0,0]', name: 'Q', x: 0, y: 0 }, { coordStr: '[1,0]', name: 'W', x: 1, y: 0 }, { coordStr: '[2,0]', name: 'E', x: 2, y: 0 }, { coordStr: '[3,0]', name: 'R', x: 3, y: 0 }, { coordStr: '[4,0]', name: 'T', x: 4, y: 0 }, { coordStr: '[5,0]', name: 'Y', x: 5, y: 0 }, { coordStr: '[6,0]', name: 'U', x: 6, y: 0 }, { coordStr: '[7,0]', name: 'I', x: 7, y: 0 }, { coordStr: '[8,0]', name: 'O', x: 8, y: 0 }, { coordStr: '[9,0]', name: 'P', x: 9, y: 0 },
     { coordStr: '[0,1]', name: 'A', x: 0, y: 1 }, { coordStr: '[1,1]', name: 'S', x: 1, y: 1 }, { coordStr: '[2,1]', name: 'D', x: 2, y: 1 }, { coordStr: '[3,1]', name: 'F', x: 3, y: 1 }, { coordStr: '[4,1]', name: 'G', x: 4, y: 1 }, { coordStr: '[5,1]', name: 'H', x: 5, y: 1 }, { coordStr: '[6,1]', name: 'J', x: 6, y: 1 }, { coordStr: '[7,1]', name: 'K', x: 7, y: 1 }, { coordStr: '[8,1]', name: 'L', x: 8, y: 1 }, { coordStr: '[9,1]', name: ';', x: 9, y: 1 },
@@ -84,7 +178,7 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
     { coordStr: '[4,4]', name: 'Space', x: 4, y: 4 }
   ];
 
-  // DOM上にキー要素があれば取得し、無ければ定義データを利用
+  // DOM上にキー要素があれば取得し、無ければ定義データを利用する
   const keyElements = document.querySelectorAll('.key[data-coord]');
   let allKeys = [];
 
@@ -99,7 +193,7 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
     allKeys = defaultLayout;
   }
 
-  // ホームポジション情報オブジェクトを準備
+  // 1. ホームポジションの情報を整理
   const homes = homeCoords.map(coordStr => {
     const [x, y] = JSON.parse(coordStr);
     const fingerId = fingerMapping[coordStr] || 'unknown';
@@ -119,12 +213,13 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
     };
   });
 
-  // 各キーから「最も近いホームポジション」を割り出し、その指の最大距離を更新
+  // 2. すべてのキーに対し、最も近いホームポジションを判定して距離を更新
   allKeys.forEach(keyObj => {
     let minDistance = Infinity;
     let closestHome = null;
 
     homes.forEach(home => {
+      // 直線距離の計算
       const dist = Math.sqrt(Math.pow(keyObj.x - home.x, 2) + Math.pow(keyObj.y - home.y, 2));
       if (dist < minDistance) {
         minDistance = dist;
@@ -132,6 +227,7 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
       }
     });
 
+    // 担当ホームポジションの「最遠記録」を更新
     if (closestHome && minDistance > closestHome.maxDistance) {
       closestHome.maxDistance = Math.round(minDistance * 100) / 100;
       closestHome.farthestKey = keyObj.name;
@@ -139,6 +235,7 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
     }
   });
 
+  // 3. 必要なデータだけを抽出して返す
   return homes.map(h => ({
     指: h.fingerName,
     ホームキー: h.homeKeyName,
