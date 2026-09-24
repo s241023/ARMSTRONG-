@@ -8,6 +8,10 @@ const changeSettingsBtn = document.getElementById('changeSettingsBtn');
 // 🟢 最大距離データを保持する独立した変数
 let maxDistanceResults = null;
 
+// 🟢 スコア結果を保持する変数と、隠しコマンド用の変数
+let lastCalculatedScores = null;
+let secretCommand = '';
+
 // 🟢 どこからでも参照できるようにキー配置データを一番上で定義
 const ALL_KEYS_LAYOUT = [
   { coordStr: '[0,-1]', name: '1', x: 0, y: -1 }, { coordStr: '[1,-1]', name: '2', x: 1, y: -1 }, { coordStr: '[2,-1]', name: '3', x: 2, y: -1 }, { coordStr: '[3,-1]', name: '4', x: 3, y: -1 }, { coordStr: '[4,-1]', name: '5', x: 4, y: -1 }, { coordStr: '[5,-1]', name: '6', x: 5, y: -1 }, { coordStr: '[7,-1]', name: '7', x: 7, y: -1 }, { coordStr: '[8,-1]', name: '8', x: 8, y: -1 }, { coordStr: '[9,-1]', name: '9', x: 9, y: -1 }, { coordStr: '[10,-1]', name: '0', x: 10, y: -1 }, { coordStr: '[11,-1]', name: '-', x: 11, y: -1 }, { coordStr: '[12,-1]', name: '^', x: 12, y: -1 }, { coordStr: '[13,-1]', name: '¥', x: 13, y: -1 },
@@ -122,9 +126,9 @@ sendBtn.addEventListener('click', () => {
         totalKeyCount = parseInt(totalMatch[1], 10);
       }
 
-      // ② [{ ... }] のブロックを3つ抽出[cite: 4]
-      const arrayMatches = text.match(/\[\{(.*?)\}\]/g);
-      
+      // ② [{ ... }] のブロックを3つ抽出（改行が含まれていても読み込めるように強化）
+      const arrayMatches = text.match(/\[\{([\s\S]*?)\}\]/g);
+
       if (arrayMatches && arrayMatches.length >= 3) {
         // "キー名: 回数" の文字列をオブジェクト(辞書型)に変換する関数
         const parseBlock = (blockStr) => {
@@ -169,6 +173,10 @@ sendBtn.addEventListener('click', () => {
 // 🟢 window.allKeysConfig ではなく、一番上で定義した ALL_KEYS_LAYOUT を使う
       if (maxDistanceResults && ALL_KEYS_LAYOUT) {
         const replacementScores = calculateKeyScores(totalKeyCount, normalKeys, ALL_KEYS_LAYOUT, maxDistanceResults);
+        
+        // 🟢 隠しコマンド表示用に結果を保存
+        lastCalculatedScores = replacementScores; 
+        
         console.log('=== 🔄 キー入れ替え推奨度スコア S(k) ===');
         console.table(replacementScores);
       } else {
@@ -273,7 +281,7 @@ const fingerPenalty = {
   'unknown': 0.150 // 割り当てがない場合の予備
 };
 
-// スコア S(k) を計算する関数
+// スコア S(k) を計算する関数（F(k)独立・分離バージョン）
 function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanceResults) {
   // Keylog2の日本語表記と、座標上のキー名を統一するための変換辞書
   const keyNameMap = {
@@ -284,15 +292,14 @@ function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanc
 
   // 1. 各キーに対して処理を行う
   allKeysConfig.forEach(keyObj => {
-    // 検索用のキー名（大文字小文字の差異を吸収）
-    const searchName = keyObj.name.toLowerCase();
+    // 🟢 前後の見えない空白や改行を trim() で除去して比較する
+    const searchName = keyObj.name.toLowerCase().trim();
     
     // F(k) の計算: 押された回数を取得して総数で割る
     let pressCount = 0;
-    
-    // normalKeysの中から、キー名が一致するもの、または日本語表記が一致するものを探す
     for (const [logKey, count] of Object.entries(normalKeys)) {
-      const mappedKey = keyNameMap[logKey] ? keyNameMap[logKey].toLowerCase() : logKey.toLowerCase();
+      const rawKey = logKey.trim();
+      const mappedKey = keyNameMap[rawKey] ? keyNameMap[rawKey].toLowerCase() : rawKey.toLowerCase();
       if (mappedKey === searchName) {
         pressCount = count;
         break;
@@ -301,19 +308,12 @@ function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanc
 
     const f_k = totalKeyCount > 0 ? (pressCount / totalKeyCount) : 0;
 
-    // もし1回も押されていないキーならスコアは0としてスキップ
-    if (f_k === 0) {
-      scores.push({ キー: keyObj.name, スコア: 0, 詳細: '入力なし' });
-      return;
-    }
-
     // 2. そのキーから最も近いホームポジションを探す
     let minDistance = Infinity;
     let closestHome = null;
-    let targetHomeResult = null; // maxDistanceResults内の該当データ
+    let targetHomeResult = null;
 
     maxDistanceResults.forEach(home => {
-      // homeStr "[x,y]" をパースして座標を取り出す
       const [hx, hy] = JSON.parse(home.ホーム座標);
       const dist = Math.sqrt(Math.pow(keyObj.x - hx, 2) + Math.pow(keyObj.y - hy, 2));
       
@@ -326,7 +326,7 @@ function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanc
 
     if (!closestHome || !targetHomeResult) return;
 
-    // 3. 担当する指の ID (right-indexなど) を名前から逆引きして P(k) を取得
+    // 3. 担当する指の P(k) を取得
     const fingerIdMap = {
       '右人差': 'right-index', '右中指': 'right-middle', '左中指': 'left-middle', '左人差': 'left-index',
       '右親指': 'right-thumb', '左親指': 'left-thumb', '左薬指': 'left-ring', '右薬指': 'right-ring',
@@ -336,24 +336,97 @@ function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanc
     const p_k = fingerPenalty[fingerId];
 
     // 4. ( d(k, home) / maxDistance ) の計算
-    // maxDistanceが0（ホームポジションしか担当していない場合）はゼロ除算を防ぐため0とする
     const maxDist = targetHomeResult.距離;
     const distanceRatio = maxDist > 0 ? (minDistance / maxDist) : 0;
 
-    // 5. 最終スコア S(k) の計算
-    // S(k) = F(k) * ( P(k) + distanceRatio )
-    const s_k = f_k * (p_k + distanceRatio);
+    // 🟢 5. 物理的負担スコア Cost(k) と 使用頻度 F(k) を独立して算出
+    // 純粋な物理負担感 Cost(k) = P(k) + distanceRatio
+    const costScore = p_k + distanceRatio;
+    
+    // 総合負担影響度（参考：従来スコア） = Cost(k) * F(k)
+    const totalScore = costScore * f_k;
 
     scores.push({
       キー: keyObj.name,
-      スコア: s_k.toFixed(6), // 見やすく小数点以下6桁に
-      担当指: closestHome.fingerName,
+      '負担スコア(物理)': costScore.toFixed(4),    // 1回あたりの押しにくさ
+      '使用頻度F(k)': (f_k * 100).toFixed(2) + '%', // 独立させた使用率
+      '総合影響度': totalScore.toFixed(6),          // 掛け合わせた参考値
+      '指負担P(k)': p_k.toFixed(3),
+      '距離/最大距離': distanceRatio.toFixed(3),
       押下回数: pressCount,
-      '距離/最大距離': distanceRatio.toFixed(3)
+      担当指: closestHome.fingerName
     });
   });
 
-  // スコアが高い順（入れ替え推奨度が高い順）に並び替える
-  scores.sort((a, b) => parseFloat(b.スコア) - parseFloat(a.スコア));
+  // 🟢 物理的負担スコアが高い順（1回あたりの押しにくさ順）にソート
+  scores.sort((a, b) => parseFloat(b['負担スコア(物理)']) - parseFloat(a['負担スコア(物理)']));
   return scores;
+}
+
+// ==========================================
+// 🟢 隠しコマンド: スコア表示カードの生成
+// ==========================================
+
+// キーボード入力を監視
+document.addEventListener('keydown', (e) => {
+  // 入力された文字を小文字で記録（文字キーのみ）
+  if (/^[a-zA-Z]$/.test(e.key)) {
+    secretCommand += e.key.toLowerCase();
+    
+    // 履歴が長くなりすぎないように直近10文字だけ保持
+    if (secretCommand.length > 10) {
+      secretCommand = secretCommand.slice(-10);
+    }
+    
+    // 「score」と打たれたらカードを表示
+    if (secretCommand.endsWith('score')) {
+      showScoreCard();
+    }
+  }
+});
+
+// スコア表を生成・表示する関数（HTMLの枠組みを利用）
+function showScoreCard() {
+  if (!lastCalculatedScores) {
+    alert('まだスコアが計算されていません。ファイルを送信してからコマンドを打ってください。');
+    return;
+  }
+  
+  const resultArea = document.getElementById('score-result-area');
+  const tbody = document.getElementById('score-tbody');
+  
+  if (!resultArea || !tbody) {
+    console.error('スコア表示用のHTML要素が見つかりません。');
+    return;
+  }
+
+  // 1. tbody の中身を空にする
+  tbody.innerHTML = '';
+  
+  // 2. データを元に行（tr）を作成して追加する
+  const headers = ['キー', '負担スコア(物理)', '使用頻度F(k)', '総合影響度', '指負担P(k)', '距離/最大距離', '押下回数', '担当指'];
+  
+  lastCalculatedScores.forEach(row => {
+    const tr = document.createElement('tr');
+    headers.forEach(h => {
+      const td = document.createElement('td');
+      td.textContent = row[h];
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  
+  // 3. 表示領域を「表示（block）」に切り替える
+  resultArea.style.display = 'block';
+  
+  // 4. CSVダウンロードボタンのイベントリスナーが複数登録されないように一度削除してから登録
+  const downloadBtn = document.getElementById('downloadCsvBtn');
+  downloadBtn.removeEventListener('click', downloadCSV); 
+  downloadBtn.addEventListener('click', downloadCSV);
+
+  // 5. スクロール処理
+  // 念のため少し遅延させて、ブラウザの描画が追いついてからスクロールさせる
+  setTimeout(() => {
+     resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
 }

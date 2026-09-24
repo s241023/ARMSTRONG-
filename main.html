@@ -29,6 +29,34 @@
     </div>
   </div>
 
+  <!-- スコア結果表示エリア（初期状態は非表示） -->
+  <div id="score-result-area" class="score-container" style="display: none;">
+    <div class="score-header">
+      <h2>( ´∀｀ ) スコア計算結果</h2>
+      <button id="downloadCsvBtn" class="btn-success btn-small">CSVダウンロード</button>
+    </div>
+    <p class="score-note">※物理的負担スコアが高い順</p>
+    
+    <div class="table-responsive">
+      <table id="score-table">
+        <thead>
+          <tr>
+            <th>キー</th>
+            <th>負担スコア(物理)</th>
+            <th>使用頻度F(k)</th>
+            <th>総合影響度</th>
+            <th>指負担P(k)</th>
+            <th>距離/最大距離</th>
+            <th>押下回数</th>
+            <th>担当指</th>
+          </tr>
+        </thead>
+        <tbody id="score-tbody">
+          <!-- JSでここにデータが挿入されます -->
+        </tbody>
+      </table>
+    </div>
+  </div>
   <script src="main.js"></script>
 </body>
 </html>
