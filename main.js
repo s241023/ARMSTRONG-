@@ -157,11 +157,31 @@ sendBtn.addEventListener('click', () => {
       console.log('特殊キー:', specialKeys);
       console.log('ショートカット:', shortcutKeys);
 
-      // --- 4. 処理完了後の後片付け（1秒後にバーを消してボタンを戻す） ---
+      // --- 4. 処理完了後の後片付け ---
       setTimeout(() => {
         progressBar.style.display = 'none';
         sendBtn.disabled = false;
-        alert('ファイルの解析が完了しました！コンソールを確認してください。');
+        
+        // 🟢 アラートの代わりに、ボタンの横に完了メッセージを表示する
+        let successMsg = document.getElementById('successMsg');
+        if (!successMsg) {
+          successMsg = document.createElement('span');
+          successMsg.id = 'successMsg';
+          successMsg.style.color = '#28a745'; // 緑色
+          successMsg.style.fontWeight = 'bold';
+          successMsg.style.marginLeft = '15px';
+          successMsg.style.fontSize = '0.9em';
+          // 送信ボタンの親要素の末尾に追加
+          sendBtn.parentNode.appendChild(successMsg);
+        }
+        successMsg.textContent = '解析完了';
+        successMsg.style.display = 'inline';
+
+        // 3秒後にメッセージをフワッと消す（フェードアウトの代わり）
+        setTimeout(() => {
+          successMsg.style.display = 'none';
+        }, 3000);
+
       }, 500);
       // --- 3. コンソールへ結果を出力 ---
       console.log('=== Keylog2 解析結果 ===');
@@ -419,14 +439,43 @@ function showScoreCard() {
   // 3. 表示領域を「表示（block）」に切り替える
   resultArea.style.display = 'block';
   
-  // 4. CSVダウンロードボタンのイベントリスナーが複数登録されないように一度削除してから登録
-  const downloadBtn = document.getElementById('downloadCsvBtn');
-  downloadBtn.removeEventListener('click', downloadCSV); 
-  downloadBtn.addEventListener('click', downloadCSV);
+  const copyBtn = document.getElementById('copyTableBtn');
+  copyBtn.removeEventListener('click', copyTableToClipboard); 
+  copyBtn.addEventListener('click', copyTableToClipboard);
 
   // 5. スクロール処理
   // 念のため少し遅延させて、ブラウザの描画が追いついてからスクロールさせる
   setTimeout(() => {
      resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 50);
+}
+
+// 🟢 タブ区切り（TSV）形式のデータをクリップボードにコピーする関数
+async function copyTableToClipboard() {
+  if (!lastCalculatedScores || lastCalculatedScores.length === 0) return;
+
+  const headers = ['キー', '負担スコア(物理)', '使用頻度F(k)', '総合影響度', '指負担P(k)', '距離/最大距離', '押下回数', '担当指'];
+  
+  // Excel等への貼り付け用はカンマではなく「タブ(\t)」で区切る
+  let tsvContent = headers.join('\t') + '\n';
+
+  // データを変換
+  lastCalculatedScores.forEach(row => {
+    const rowData = headers.map(h => {
+      let cell = row[h] !== undefined ? String(row[h]) : '';
+      // セル内にタブや改行が含まれていると表が崩れるのでスペースに置換
+      cell = cell.replace(/\t|\n|\r/g, ' ');
+      return cell;
+    });
+    tsvContent += rowData.join('\t') + '\n';
+  });
+
+  // クリップボードに書き込み
+  try {
+    await navigator.clipboard.writeText(tsvContent);
+
+  } catch (err) {
+    console.error('コピーに失敗しました', err);
+    alert('クリップボードへのコピーに失敗しました。');
+  }
 }
