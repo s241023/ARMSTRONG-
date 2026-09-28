@@ -64,6 +64,14 @@ window.addEventListener('DOMContentLoaded', () => {
     alert('設定が見つかりません。初期設定画面に戻ります。');
     window.location.href = 'index.html';
   }
+
+  // 🟢 次へ進むボタンの遷移処理
+  const nextPageBtn = document.getElementById('nextPageBtn');
+  if (nextPageBtn) {
+    nextPageBtn.addEventListener('click', () => {
+      window.location.href = 'result.html';
+    });
+  }
 });
 
 // ファイルが選択されたら「送信ボタン」を有効化する
@@ -162,22 +170,30 @@ sendBtn.addEventListener('click', () => {
         progressBar.style.display = 'none';
         sendBtn.disabled = false;
         
-        // 🟢 アラートの代わりに、ボタンの横に完了メッセージを表示する
+        // 🟢 次ページ用にスコアデータをローカルストレージへ保存
+        if (lastCalculatedScores) {
+          localStorage.setItem('calculatedScores', JSON.stringify(lastCalculatedScores));
+        }
+
+        // 🟢 完了メッセージと「次へ進む」ボタンを表示
         let successMsg = document.getElementById('successMsg');
         if (!successMsg) {
           successMsg = document.createElement('span');
           successMsg.id = 'successMsg';
-          successMsg.style.color = '#28a745'; // 緑色
+          successMsg.style.color = '#28a745';
           successMsg.style.fontWeight = 'bold';
-          successMsg.style.marginLeft = '15px';
+          successMsg.style.marginLeft = '10px';
           successMsg.style.fontSize = '0.9em';
-          // 送信ボタンの親要素の末尾に追加
-          sendBtn.parentNode.appendChild(successMsg);
+          sendBtn.parentNode.insertBefore(successMsg, document.getElementById('nextPageBtn'));
         }
-        successMsg.textContent = '解析完了';
+        successMsg.textContent = '解析完了！';
         successMsg.style.display = 'inline';
 
-        // 3秒後にメッセージをフワッと消す（フェードアウトの代わり）
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        if (nextPageBtn) {
+          nextPageBtn.style.display = 'inline-block';
+        }
+
         setTimeout(() => {
           successMsg.style.display = 'none';
         }, 3000);

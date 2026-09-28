@@ -365,3 +365,124 @@ button:hover:not(:disabled) {
   border-bottom: 2px solid #dee2e6;
   white-space: nowrap; /* ヘッダーは改行しない */
 }
+
+/* 結果提案ページのカードサイズ拡張 */
+.result-card {
+  width: 700px;
+  max-width: 95%;
+  margin: 30px auto;
+}
+
+#suggestion-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9em;
+}
+
+#suggestion-table th, 
+#suggestion-table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+#suggestion-table th {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.btn-primary {
+  background-color: #007bff !important;
+}
+.btn-primary:hover {
+  background-color: #0056b3 !important;
+}
+
+/* --- キー配置プレビュー用のスタイル --- */
+.preview-wrapper {
+  width: 100%;
+  max-width: 1100px;
+  margin: 20px auto;
+  padding: 10px;
+}
+
+.preview-container {
+  margin: 15px 0;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow-x: auto; /* 万が一狭い画面でもスクロール可能に */
+}
+
+.preview-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+  min-width: 750px; /* 見切れないよう十分な横幅を確保 */
+}
+
+.preview-row {
+  display: flex;
+  gap: 6px;
+}
+
+/* 物理キーボード風のずらし */
+.preview-row:nth-child(2) { margin-left: 20px; }
+.preview-row:nth-child(3) { margin-left: 40px; }
+.preview-row:nth-child(4) { margin-left: 60px; }
+
+.preview-key {
+  min-width: 42px;
+  height: 48px;
+  padding: 4px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #fff;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-sizing: border-box;
+}
+
+.preview-key.space-key {
+  width: 240px;
+}
+
+/* 🟢 一律「入れ替えられたキー」のハイライト */
+.preview-key.swapped-key {
+  background-color: #e2f0ff;
+  border-color: #007bff;
+  color: #004085;
+  font-weight: bold;
+}
+
+.preview-key .original-label {
+  font-size: 0.65rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+.preview-legend {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  margin-top: 15px;
+}
+
+.legend-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: #e2f0ff;
+  border: 1px solid #007bff;
+}
