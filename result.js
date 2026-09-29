@@ -9,14 +9,35 @@ window.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // キーボードレイアウト構造
-  const KEYBOARD_ROWS = [
+  // 標準QWERTYレイアウト構造（初期配置定義）
+  const DEFAULT_KEYBOARD_ROWS = [
     [{ name: '1' }, { name: '2' }, { name: '3' }, { name: '4' }, { name: '5' }, { name: '6' }, { name: '7' }, { name: '8' }, { name: '9' }, { name: '0' }, { name: '-' }, { name: '^' }, { name: '¥' }],
     [{ name: 'Q' }, { name: 'W' }, { name: 'E' }, { name: 'R' }, { name: 'T' }, { name: 'Y' }, { name: 'U' }, { name: 'I' }, { name: 'O' }, { name: 'P' }, { name: '@' }, { name: '[' }],
     [{ name: 'A' }, { name: 'S' }, { name: 'D' }, { name: 'F' }, { name: 'G' }, { name: 'H' }, { name: 'J' }, { name: 'K' }, { name: 'L' }, { name: ';' }, { name: ':' }, { name: ']' }],
     [{ name: 'Z' }, { name: 'X' }, { name: 'C' }, { name: 'V' }, { name: 'B' }, { name: 'N' }, { name: 'M' }, { name: ',' }, { name: '.' }, { name: '/' }, { name: '\\' }],
     [{ name: 'Space', isSpace: true }]
   ];
+
+  // 🟢 「提案前（解析・計算時）」の最新キー配列を構築
+  const KEYBOARD_ROWS = JSON.parse(JSON.stringify(DEFAULT_KEYBOARD_ROWS));
+  const savedLayoutStr = localStorage.getItem('latestLayout');
+  if (savedLayoutStr) {
+    try {
+      const savedLayout = JSON.parse(savedLayoutStr);
+      if (savedLayout && savedLayout.swapMap) {
+        const pastSwap = savedLayout.swapMap;
+        KEYBOARD_ROWS.forEach(row => {
+          row.forEach(keyObj => {
+            if (!keyObj.isSpace && pastSwap[keyObj.name]) {
+              keyObj.name = pastSwap[keyObj.name];
+            }
+          });
+        });
+      }
+    } catch (e) {
+      console.error('latestLayoutの読み込みに失敗しました', e);
+    }
+  }
 
   // 🟢 数字キーおよび Space キーを除外リストに指定
   const excludedKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Space', 'space'];
@@ -70,7 +91,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }).sort((a, b) => b.押下回数 - a.押下回数);
 
   const usedCandidates = new Set();
-  const swapMap = {}; // { '元キー': '新キー' }
+  const proposedSwapMap = {}; // 今回の改善提案による入れ替え { '提案前キー': '提案後キー' }
 
   // 5. マッチング処理とテーブルHTML生成
   const tbody = document.getElementById('suggestion-tbody');
@@ -100,8 +121,8 @@ window.addEventListener('DOMContentLoaded', () => {
       usedCandidates.add(candidate.キー);
 
       // 🟢 互いの移動先を記録
-      swapMap[target.キー] = candidate.キー;
-      swapMap[candidate.キー] = target.キー;
+      proposedSwapMap[target.キー] = candidate.キー;
+      proposedSwapMap[candidate.キー] = target.キー;
 
       tr.innerHTML = `
         <td><strong>${index + 1}</strong></td>
@@ -138,8 +159,8 @@ window.addEventListener('DOMContentLoaded', () => {
         keyDiv.className = 'preview-key';
         if (keyObj.isSpace) keyDiv.classList.add('space-key');
 
-        const originalName = keyObj.name;
-        const newKey = swapMap[originalName];
+        const originalName = keyObj.name; // 🟢 提案前（計算時）のキー名
+        const newKey = proposedSwapMap[originalName]; // 🟢 提案後のキー名
 
         if (newKey) {
           // 🟢 入れ替えが発生したキーを一律ハイライト
@@ -184,4 +205,68 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('backBtn').addEventListener('click', () => {
     window.location.href = 'main.html';
   });
+
+  // 🟢 ローカルストレージに最新と履歴を分けて保存する処理
+  document.getElementById('saveConfigBtn').addEventListener('click', () => {
+    if (Object.keys(proposedSwapMap).length === 0) {
+      alert('入れ替えされたキーが存在しません。');
+      return;
+    }
+
+    // 🟢 標準QWERTYに対する累計swapMapを算出（main.jsやedit.jsとのデータ不整合を防止）
+    const cumulativeSwapMap = {};
+    const finalKeyboard = JSON.parse(JSON.stringify(KEYBOARD_ROWS));
+
+    // 提案前の配置（KEYBOARD_ROWS）に今回の提案（proposedSwapMap）を適用
+    finalKeyboard.forEach(row => {
+      row.forEach(keyObj => {
+        if (!keyObj.isSpace && proposedSwapMap[keyObj.name]) {
+          keyObj.name = proposedSwapMap[keyObj.name];
+        }
+      });
+    });
+
+    // 標準QWERTYの位置キー名と比較して全累計の swapMap を作成
+    for (let r = 0; r < DEFAULT_KEYBOARD_ROWS.length; r++) {
+      for (let c = 0; c < DEFAULT_KEYBOARD_ROWS[r].length; c++) {
+        if (!DEFAULT_KEYBOARD_ROWS[r][c].isSpace) {
+          const defaultKey = DEFAULT_KEYBOARD_ROWS[r][c].name;
+          const finalKey = finalKeyboard[r][c].name;
+          if (defaultKey !== finalKey) {
+            cumulativeSwapMap[defaultKey] = finalKey;
+          }
+        }
+      }
+    }
+
+    // 今回保存する新しいデータ
+    const newSaveData = {
+      id: Date.now(),
+      date: new Date().toLocaleString('ja-JP'),
+      settings: settings,
+      swapMap: cumulativeSwapMap
+    };
+
+    // 1. 現在の「最新配列 (latestLayout)」が既に存在するかチェック
+    const currentLatest = JSON.parse(localStorage.getItem('latestLayout'));
+
+    // 2. もし既に最新配列があれば、それを「旧配列保存タブ (historyLayouts)」の先頭に押し出す
+    if (currentLatest) {
+      const historyLayouts = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
+      historyLayouts.unshift(currentLatest);
+      localStorage.setItem('historyLayouts', JSON.stringify(historyLayouts));
+    }
+
+    // 3. 今回のデータを新たな「最新配列 (latestLayout)」として単独で上書き保存
+    localStorage.setItem('latestLayout', JSON.stringify(newSaveData));
+
+    // 4. ボタンの見た目を変更してフィードバック
+    const btn = document.getElementById('saveConfigBtn');
+    btn.textContent = '✅ 最新配列として保存！';
+    btn.classList.replace('btn-success', 'btn-secondary');
+    btn.disabled = true; // 連続クリック防止
+    
+    alert('最新の配列として保存し、古い配列は履歴に移動しました！');
+  });
+
 });

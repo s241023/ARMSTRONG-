@@ -23,6 +23,55 @@ const ALL_KEYS_LAYOUT = [
 
 // ページ読み込み時にローカルストレージの設定を取得して表示する
 window.addEventListener('DOMContentLoaded', () => {
+  
+  // 🟢 前回保存した最新配列の読み込みとベース適用処理
+  const savedDataStr = localStorage.getItem('latestLayout');
+  if (savedDataStr) {
+    try {
+      const savedLayout = JSON.parse(savedDataStr);
+      // swapMap（入れ替えデータ）が存在して、中身がある場合のみ確認ダイアログを出す
+      if (savedLayout && savedLayout.swapMap && Object.keys(savedLayout.swapMap).length > 0) {
+        
+        const useSaved = confirm('💾 前回保存したカスタマイズ配列（最新）が見つかりました。\n\nこの保存配列をベースにして、新しく計算を始めますか？\n（「キャンセル」を押すと標準のQWERTY配列からスタートします）');
+        
+        if (useSaved) {
+          const swap = savedLayout.swapMap;
+          
+          // ALL_KEYS_LAYOUT の各キーを、前回の swapMap に従って書き換える
+          ALL_KEYS_LAYOUT.forEach(keyObj => {
+            // スペースキーは除外し、入れ替え対象のキー名があれば上書き
+            if (keyObj.name !== 'Space' && swap[keyObj.name]) {
+              keyObj.name = swap[keyObj.name]; 
+            }
+          });
+          
+          console.log('保存された配列をベースに設定しました:', swap);
+        } else {
+          // 🟢 キャンセルが押された場合の処理
+          // 1. 最新配列（latestLayoutにあったデータ）を「旧配列保存 (historyLayouts)」の先頭に押し出す
+          const historyLayouts = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
+          historyLayouts.unshift(savedLayout);
+          localStorage.setItem('historyLayouts', JSON.stringify(historyLayouts));
+
+          // 2. latestLayout を標準QWERTY配列 (swapMap: {}) として更新保存
+          const resetData = {
+            id: Date.now(),
+            date: new Date().toLocaleString('ja-JP'),
+            settings: savedLayout.settings || {},
+            swapMap: {}
+          };
+          localStorage.setItem('latestLayout', JSON.stringify(resetData));
+
+          console.log('「キャンセル」が選択されたため、既存の最新配列を履歴に移動し、latestLayout を標準QWERTYにリセットしました。');
+        }
+      }
+      
+    } catch (e) {
+      console.error('保存データの読み込みに失敗しました', e);
+    }
+  }
+
+  // 👇 ここから既存の処理が続きます
   const savedData = localStorage.getItem('appSettings');
   
   if (savedData) {

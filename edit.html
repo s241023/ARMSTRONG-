@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>キー配列の手動編集 - ARMSTRONG</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* 編集画面専用のスタイル */
+    .edit-key {
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .edit-key:hover:not(.space-key) {
+      background-color: #e0e0e0;
+    }
+    /* 選択中のキー（緑） */
+    .edit-key.selected {
+      background-color: #4CAF50 !important;
+      color: white;
+      border-color: #388E3C;
+    }
+    /* 変更済みのキー（赤） */
+    .edit-key.swapped {
+      background-color: #f44336;
+      color: white;
+      border-color: #d32f2f;
+    }
+    /* スペースキーは入れ替え不可 */
+    .edit-key.space-key {
+      cursor: not-allowed;
+    }
+    .message-area {
+      text-align: center;
+      font-size: 1.2em;
+      margin-bottom: 20px;
+      font-weight: bold;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 🟢 カード枠を廃止し幅を広く使ったラッパーに変更 -->
+  <div style="max-width: 1200px; margin: 40px auto; padding: 20px;">
+    <h2 style="text-align: center;">✏️ キー配列の手動編集</h2>
+    
+    <!-- 状態を表示するメッセージエリア -->
+    <div id="message" class="message-area" style="max-width: 800px; margin: 0 auto 20px auto;">
+      入れ替えるキーを選択してください
+    </div>
+    
+    <!-- キーボード描画エリア -->
+    <div id="keyboard-editor" style="display: flex; flex-direction: column; gap: 8px; align-items: center; margin-bottom: 30px;">
+      <!-- JavaScriptで描画されます -->
+    </div>
+
+    <!-- アクションボタン -->
+    <div style="display: flex; justify-content: center; gap: 10px;">
+      <button id="cancelBtn" class="btn-small">キャンセル (戻る)</button>
+      <button id="saveBtn" class="btn-success btn-small">💾 保存して終了</button>
+    </div>
+  </div>
+  
+  <script src="edit.js"></script>
+</body>
+</html>
