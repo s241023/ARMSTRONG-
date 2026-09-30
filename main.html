@@ -26,16 +26,20 @@
 
     <div class="buttons" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
       <button id="sendBtn" class="btn-success" disabled>送信する</button>
-      <!-- 🟢 解析完了後に表示される次へ進むボタン -->
+      <!-- 解析完了後に表示される次へ進むボタン -->
       <button id="nextPageBtn" class="btn-primary" style="display: none;">次へ進む →</button>
     </div>
   </div>
 
-  <div style="text-align: right; margin-bottom: 10px; max-width: 800px; margin-left: auto; margin-right: auto;">
-  <a href="edit.html" class="btn-secondary btn-small" style="text-decoration: none; display: inline-block;">
-    ✏️ 配列の編集
-  </a>
-  </div>
+  <!-- 🟢 カード外下のナビゲーションエリア（左右に配置） -->
+<div style="display: flex; justify-content: center; gap: 180px; align-items: center; max-width: 800px; margin: 10px auto 20px auto;">
+    <a href="edit.html" class="btn-secondary btn-small" style="text-decoration: none; display: inline-block;">
+        配列の編集
+    </a>
+    <button id="resetQwertyBtn" class="btn-secondary btn-small">
+        初期配列(QWERTY)に戻す
+    </button>
+</div>
   
   <!-- スコア結果表示エリア（初期状態は非表示） -->
   <div id="score-result-area" class="score-container" style="display: none;">

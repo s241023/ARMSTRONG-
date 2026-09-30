@@ -24,54 +24,29 @@ const ALL_KEYS_LAYOUT = [
 // ページ読み込み時にローカルストレージの設定を取得して表示する
 window.addEventListener('DOMContentLoaded', () => {
   
-  // 🟢 前回保存した最新配列の読み込みとベース適用処理
+  // 🟢 保存した配列があればアラートなしで自動適用
   const savedDataStr = localStorage.getItem('latestLayout');
   if (savedDataStr) {
     try {
       const savedLayout = JSON.parse(savedDataStr);
-      // swapMap（入れ替えデータ）が存在して、中身がある場合のみ確認ダイアログを出す
       if (savedLayout && savedLayout.swapMap && Object.keys(savedLayout.swapMap).length > 0) {
+        const swap = savedLayout.swapMap;
         
-        const useSaved = confirm('💾 前回保存したカスタマイズ配列（最新）が見つかりました。\n\nこの保存配列をベースにして、新しく計算を始めますか？\n（「キャンセル」を押すと標準のQWERTY配列からスタートします）');
+        // ALL_KEYS_LAYOUT の各キーを前回の swapMap に従って適用
+        ALL_KEYS_LAYOUT.forEach(keyObj => {
+          if (keyObj.name !== 'Space' && swap[keyObj.name]) {
+            keyObj.name = swap[keyObj.name]; 
+          }
+        });
         
-        if (useSaved) {
-          const swap = savedLayout.swapMap;
-          
-          // ALL_KEYS_LAYOUT の各キーを、前回の swapMap に従って書き換える
-          ALL_KEYS_LAYOUT.forEach(keyObj => {
-            // スペースキーは除外し、入れ替え対象のキー名があれば上書き
-            if (keyObj.name !== 'Space' && swap[keyObj.name]) {
-              keyObj.name = swap[keyObj.name]; 
-            }
-          });
-          
-          console.log('保存された配列をベースに設定しました:', swap);
-        } else {
-          // 🟢 キャンセルが押された場合の処理
-          // 1. 最新配列（latestLayoutにあったデータ）を「旧配列保存 (historyLayouts)」の先頭に押し出す
-          const historyLayouts = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
-          historyLayouts.unshift(savedLayout);
-          localStorage.setItem('historyLayouts', JSON.stringify(historyLayouts));
-
-          // 2. latestLayout を標準QWERTY配列 (swapMap: {}) として更新保存
-          const resetData = {
-            id: Date.now(),
-            date: new Date().toLocaleString('ja-JP'),
-            settings: savedLayout.settings || {},
-            swapMap: {}
-          };
-          localStorage.setItem('latestLayout', JSON.stringify(resetData));
-
-          console.log('「キャンセル」が選択されたため、既存の最新配列を履歴に移動し、latestLayout を標準QWERTYにリセットしました。');
-        }
+        console.log('保存された配列を自動適用しました:', swap);
       }
-      
     } catch (e) {
       console.error('保存データの読み込みに失敗しました', e);
     }
   }
 
-  // 👇 ここから既存の処理が続きます
+  // 設定情報の取得と初期表示
   const savedData = localStorage.getItem('appSettings');
   
   if (savedData) {
@@ -85,51 +60,81 @@ window.addEventListener('DOMContentLoaded', () => {
     
     displayHands.textContent = handsText;
     
-  // 座標の表示と最遠キーの計算
+    // 座標の表示と最遠キーの計算
     if (settings.homeCoords && settings.homeCoords.length > 0) {
       displayCoords.textContent = settings.homeCoords.join(' , ');
 
-      // 🟢 ホームポジションから各指の「現実的に担当する最遠キー」と距離を計算し、独立変数に保存
       maxDistanceResults = calculateMaxDistances(settings.homeCoords, settings.fingerMapping || {});
       
-      // コンソールに出力
       console.log('=== 各ホームポジションからの最遠キー計算結果 ===');
       console.table(maxDistanceResults);
 
-      // 保存するためのデータ形式
       const dataToSave = {
         calculatedAt: new Date().toISOString(),
         distanceResults: maxDistanceResults
       };
       
-      // ローカルストレージに保存
       localStorage.setItem('maxDistanceResults', JSON.stringify(dataToSave));
 
     } else {
       displayCoords.textContent = '未設定';
     }
   } else {
-    // もし設定データがないのに直接このページに来てしまったら、設定画面に戻す
     alert('設定が見つかりません。初期設定画面に戻ります。');
     window.location.href = 'index.html';
   }
 
-  // 🟢 次へ進むボタンの遷移処理
+  // 次へ進むボタンの遷移処理
   const nextPageBtn = document.getElementById('nextPageBtn');
   if (nextPageBtn) {
     nextPageBtn.addEventListener('click', () => {
       window.location.href = 'result.html';
     });
   }
+
+  // 🟢 初期配列(QWERTY)に戻すボタンのイベント設定
+  const resetQwertyBtn = document.getElementById('resetQwertyBtn');
+  if (resetQwertyBtn) {
+    resetQwertyBtn.addEventListener('click', () => {
+      if (confirm('現在の配列設定を初期QWERTY配列に戻しますか？\n（現在のカスタム配列は履歴に保存されます）')) {
+        const savedDataStr = localStorage.getItem('latestLayout');
+        let settings = {};
+
+        if (savedDataStr) {
+          try {
+            const savedLayout = JSON.parse(savedDataStr);
+            settings = savedLayout.settings || {};
+            
+            // 入れ替え設定が存在する場合は履歴（historyLayouts）に押し出す
+            if (savedLayout.swapMap && Object.keys(savedLayout.swapMap).length > 0) {
+              const historyLayouts = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
+              historyLayouts.unshift(savedLayout);
+              localStorage.setItem('historyLayouts', JSON.stringify(historyLayouts));
+            }
+          } catch (e) {
+            console.error('履歴への保存処理に失敗しました', e);
+          }
+        }
+
+        // latestLayout を標準QWERTY配列 (swapMap: {}) として保存
+        const resetData = {
+          id: Date.now(),
+          date: new Date().toLocaleString('ja-JP'),
+          settings: settings,
+          swapMap: {}
+        };
+        localStorage.setItem('latestLayout', JSON.stringify(resetData));
+
+        alert('初期配列(QWERTY)にリセットしました。');
+        location.reload(); // 画面を更新して標準配列に戻す
+      }
+    });
+  }
 });
 
 // ファイルが選択されたら「送信ボタン」を有効化する
 fileInput.addEventListener('change', () => {
-  if (fileInput.files.length > 0) {
-    sendBtn.disabled = false;
-  } else {
-    sendBtn.disabled = true;
-  }
+  sendBtn.disabled = fileInput.files.length === 0;
 });
 
 sendBtn.addEventListener('click', () => {
@@ -146,51 +151,42 @@ sendBtn.addEventListener('click', () => {
       return; 
     }
 
-    // --- 1. UIの更新：ボタンを無効化し、プログレスバーを表示する ---
-    sendBtn.disabled = true; // 送信ボタンを押せなくする
+    sendBtn.disabled = true;
     
-    // プログレスバー（読み込みバー）の要素を取得、無ければ自動作成
     let progressBar = document.getElementById('loadingBar');
     if (!progressBar) {
       progressBar = document.createElement('progress');
       progressBar.id = 'loadingBar';
-      progressBar.max = 100; // 最大値
-      progressBar.value = 10; // 初期値
+      progressBar.max = 100;
+      progressBar.value = 10;
       progressBar.style.marginLeft = '10px';
-      // 送信ボタンのすぐ後ろに追加
       sendBtn.parentNode.insertBefore(progressBar, sendBtn.nextSibling);
     }
     progressBar.style.display = 'inline-block';
-    progressBar.value = 30; // ちょっとだけ進めておく
+    progressBar.value = 30;
 
-    // --- 2. ファイルの読み込みと解析処理 ---
     const reader = new FileReader();
 
     reader.onload = function(e) {
-      progressBar.value = 70; // 読み込み完了時点でバーを進める
+      progressBar.value = 70;
       
       const text = e.target.result;
       
-      // 抽出用の変数を用意
       let totalKeyCount = 0;
       let normalKeys = {};
       let specialKeys = {};
       let shortcutKeys = {};
 
-      // ① 「総キー押下イベント数」を取得
       const totalMatch = text.match(/総キー押下イベント数:\s*(\d+)/);
       if (totalMatch) {
         totalKeyCount = parseInt(totalMatch[1], 10);
       }
 
-      // ② [{ ... }] のブロックを3つ抽出（改行が含まれていても読み込めるように強化）
       const arrayMatches = text.match(/\[\{([\s\S]*?)\}\]/g);
 
       if (arrayMatches && arrayMatches.length >= 3) {
-        // "キー名: 回数" の文字列をオブジェクト(辞書型)に変換する関数
         const parseBlock = (blockStr) => {
           const obj = {};
-          // 正規表現で「カンマやスペース以外の文字」と「数字」のペアを探す
           const regex = /([^,\s{}[\]]+):\s*(\d+)/g;
           let m;
           while ((m = regex.exec(blockStr)) !== null) {
@@ -199,32 +195,27 @@ sendBtn.addEventListener('click', () => {
           return obj;
         };
 
-        // それぞれのブロックをパースして変数に格納
         normalKeys = parseBlock(arrayMatches[0]);
         specialKeys = parseBlock(arrayMatches[1]);
         shortcutKeys = parseBlock(arrayMatches[2]);
       }
 
-      progressBar.value = 100; // 解析完了でバーをMAXに
+      progressBar.value = 100;
 
-      // --- 3. コンソールへ結果を出力 ---
       console.log('=== Keylog2 解析結果 ===');
       console.log('合計のキーを押した数:', totalKeyCount);
       console.log('通常キー:', normalKeys);
       console.log('特殊キー:', specialKeys);
       console.log('ショートカット:', shortcutKeys);
 
-      // --- 4. 処理完了後の後片付け ---
       setTimeout(() => {
         progressBar.style.display = 'none';
         sendBtn.disabled = false;
         
-        // 🟢 次ページ用にスコアデータをローカルストレージへ保存
         if (lastCalculatedScores) {
           localStorage.setItem('calculatedScores', JSON.stringify(lastCalculatedScores));
         }
 
-        // 🟢 完了メッセージと「次へ進む」ボタンを表示
         let successMsg = document.getElementById('successMsg');
         if (!successMsg) {
           successMsg = document.createElement('span');
@@ -248,30 +239,18 @@ sendBtn.addEventListener('click', () => {
         }, 3000);
 
       }, 500);
-      // --- 3. コンソールへ結果を出力 ---
-      console.log('=== Keylog2 解析結果 ===');
-      console.log('合計のキーを押した数:', totalKeyCount);
-      console.log('通常キー:', normalKeys);
-      console.log('特殊キー:', specialKeys);
-      console.log('ショートカット:', shortcutKeys);
 
-// 🟢 window.allKeysConfig ではなく、一番上で定義した ALL_KEYS_LAYOUT を使う
       if (maxDistanceResults && ALL_KEYS_LAYOUT) {
         const replacementScores = calculateKeyScores(totalKeyCount, normalKeys, ALL_KEYS_LAYOUT, maxDistanceResults);
-        
-        // 🟢 隠しコマンド表示用に結果を保存
         lastCalculatedScores = replacementScores; 
         
         console.log('=== 🔄 キー入れ替え推奨度スコア S(k) ===');
         console.table(replacementScores);
       } else {
-        console.warn('最大距離データが不足しているためスコア計算をスキップしました。一度ページをリロードしてホームポジションを設定し直してください。');
+        console.warn('最大距離データが不足しているためスコア計算をスキップしました。');
       }
-
-      // --- 4. 処理完了後の後片付け（1秒後にバーを消してボタンを戻す） ---
     };
 
-    // テキストとしてファイルを読み込む
     reader.readAsText(file);
     
   } else {
@@ -279,22 +258,20 @@ sendBtn.addEventListener('click', () => {
   }
 });
 
-// 設定変更ボタンの処理（index.htmlに戻る）
+// 設定変更ボタン
 changeSettingsBtn.addEventListener('click', () => {
   window.location.href = 'index.html';
 });
 
-// 🟢 ホームポジションごとの最遠キーおよび距離を計算する関数
+// ホームポジション計算
 function calculateMaxDistances(homeCoords, fingerMapping) {
   const fingerNames = {
     'left-pinky': '左小指', 'left-ring': '左薬指', 'left-middle': '左中指', 'left-index': '左人差', 'left-thumb': '左親指',
     'right-thumb': '右親指', 'right-index': '右人差', 'right-middle': '右中指', 'right-ring': '右薬指', 'right-pinky': '右小指'
   };
 
-  // 🟢 一番上で定義した共通データを使用する
   const allKeys = ALL_KEYS_LAYOUT;
 
-  // 1. ホームポジションの情報を整理
   const homes = homeCoords.map(coordStr => {
     const [x, y] = JSON.parse(coordStr);
     const fingerId = fingerMapping[coordStr] || 'unknown';
@@ -314,13 +291,11 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
     };
   });
 
-  // 2. すべてのキーに対し、最も近いホームポジションを判定して距離を更新
   allKeys.forEach(keyObj => {
     let minDistance = Infinity;
     let closestHome = null;
 
     homes.forEach(home => {
-      // 直線距離の計算
       const dist = Math.sqrt(Math.pow(keyObj.x - home.x, 2) + Math.pow(keyObj.y - home.y, 2));
       if (dist < minDistance) {
         minDistance = dist;
@@ -328,7 +303,6 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
       }
     });
 
-    // 担当ホームポジションの「最遠記録」を更新
     if (closestHome && minDistance > closestHome.maxDistance) {
       closestHome.maxDistance = Math.round(minDistance * 100) / 100;
       closestHome.farthestKey = keyObj.name;
@@ -336,7 +310,6 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
     }
   });
 
-  // 3. 必要なデータだけを抽出して返す
   return homes.map(h => ({
     指: h.fingerName,
     ホームキー: h.homeKeyName,
@@ -347,40 +320,24 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
   }));
 }
 
-// ==========================================
-// 🟢 入れ替え推奨度スコア S(k) の計算関連
-// ==========================================
-
 // 指ごとの負担スコア P(k)
 const fingerPenalty = {
-  'right-index': 0.000,
-  'right-middle': 0.012,
-  'left-middle': 0.035,
-  'left-index': 0.058,
-  'right-thumb': 0.150,
-  'left-thumb': 0.174,
-  'left-ring': 0.190,
-  'right-ring': 0.192,
-  'left-pinky': 0.297,
-  'right-pinky': 0.301,
-  'unknown': 0.150 // 割り当てがない場合の予備
+  'right-index': 0.000, 'right-middle': 0.012, 'left-middle': 0.035, 'left-index': 0.058,
+  'right-thumb': 0.150, 'left-thumb': 0.174, 'left-ring': 0.190, 'right-ring': 0.192,
+  'left-pinky': 0.297, 'right-pinky': 0.301, 'unknown': 0.150
 };
 
-// スコア S(k) を計算する関数（F(k)独立・分離バージョン）
+// スコア計算
 function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanceResults) {
-  // Keylog2の日本語表記と、座標上のキー名を統一するための変換辞書
   const keyNameMap = {
     '左角括弧': '[', '右角括弧': ']', 'コロン': ':', 'コンマ': ','
   };
 
   const scores = [];
 
-  // 1. 各キーに対して処理を行う
   allKeysConfig.forEach(keyObj => {
-    // 🟢 前後の見えない空白や改行を trim() で除去して比較する
     const searchName = keyObj.name.toLowerCase().trim();
     
-    // F(k) の計算: 押された回数を取得して総数で割る
     let pressCount = 0;
     for (const [logKey, count] of Object.entries(normalKeys)) {
       const rawKey = logKey.trim();
@@ -393,7 +350,6 @@ function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanc
 
     const f_k = totalKeyCount > 0 ? (pressCount / totalKeyCount) : 0;
 
-    // 2. そのキーから最も近いホームポジションを探す
     let minDistance = Infinity;
     let closestHome = null;
     let targetHomeResult = null;
@@ -411,7 +367,6 @@ function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanc
 
     if (!closestHome || !targetHomeResult) return;
 
-    // 3. 担当する指の P(k) を取得
     const fingerIdMap = {
       '右人差': 'right-index', '右中指': 'right-middle', '左中指': 'left-middle', '左人差': 'left-index',
       '右親指': 'right-thumb', '左親指': 'left-thumb', '左薬指': 'left-ring', '右薬指': 'right-ring',
@@ -420,22 +375,17 @@ function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanc
     const fingerId = fingerIdMap[closestHome.fingerName] || 'unknown';
     const p_k = fingerPenalty[fingerId];
 
-    // 4. ( d(k, home) / maxDistance ) の計算
     const maxDist = targetHomeResult.距離;
     const distanceRatio = maxDist > 0 ? (minDistance / maxDist) : 0;
 
-    // 🟢 5. 物理的負担スコア Cost(k) と 使用頻度 F(k) を独立して算出
-    // 純粋な物理負担感 Cost(k) = P(k) + distanceRatio
     const costScore = p_k + distanceRatio;
-    
-    // 総合負担影響度（参考：従来スコア） = Cost(k) * F(k)
     const totalScore = costScore * f_k;
 
     scores.push({
       キー: keyObj.name,
-      '負担スコア(物理)': costScore.toFixed(4),    // 1回あたりの押しにくさ
-      '使用頻度F(k)': (f_k * 100).toFixed(2) + '%', // 独立させた使用率
-      '総合影響度': totalScore.toFixed(6),          // 掛け合わせた参考値
+      '負担スコア(物理)': costScore.toFixed(4),
+      '使用頻度F(k)': (f_k * 100).toFixed(2) + '%',
+      '総合影響度': totalScore.toFixed(6),
       '指負担P(k)': p_k.toFixed(3),
       '距離/最大距離': distanceRatio.toFixed(3),
       押下回数: pressCount,
@@ -443,34 +393,23 @@ function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanc
     });
   });
 
-  // 🟢 物理的負担スコアが高い順（1回あたりの押しにくさ順）にソート
   scores.sort((a, b) => parseFloat(b['負担スコア(物理)']) - parseFloat(a['負担スコア(物理)']));
   return scores;
 }
 
-// ==========================================
-// 🟢 隠しコマンド: スコア表示カードの生成
-// ==========================================
-
-// キーボード入力を監視
+// 隠しコマンド処理
 document.addEventListener('keydown', (e) => {
-  // 入力された文字を小文字で記録（文字キーのみ）
   if (/^[a-zA-Z]$/.test(e.key)) {
     secretCommand += e.key.toLowerCase();
-    
-    // 履歴が長くなりすぎないように直近10文字だけ保持
     if (secretCommand.length > 10) {
       secretCommand = secretCommand.slice(-10);
     }
-    
-    // 「score」と打たれたらカードを表示
     if (secretCommand.endsWith('score')) {
       showScoreCard();
     }
   }
 });
 
-// スコア表を生成・表示する関数（HTMLの枠組みを利用）
 function showScoreCard() {
   if (!lastCalculatedScores) {
     alert('まだスコアが計算されていません。ファイルを送信してからコマンドを打ってください。');
@@ -480,15 +419,9 @@ function showScoreCard() {
   const resultArea = document.getElementById('score-result-area');
   const tbody = document.getElementById('score-tbody');
   
-  if (!resultArea || !tbody) {
-    console.error('スコア表示用のHTML要素が見つかりません。');
-    return;
-  }
+  if (!resultArea || !tbody) return;
 
-  // 1. tbody の中身を空にする
   tbody.innerHTML = '';
-  
-  // 2. データを元に行（tr）を作成して追加する
   const headers = ['キー', '負担スコア(物理)', '使用頻度F(k)', '総合影響度', '指負担P(k)', '距離/最大距離', '押下回数', '担当指'];
   
   lastCalculatedScores.forEach(row => {
@@ -501,44 +434,35 @@ function showScoreCard() {
     tbody.appendChild(tr);
   });
   
-  // 3. 表示領域を「表示（block）」に切り替える
   resultArea.style.display = 'block';
   
   const copyBtn = document.getElementById('copyTableBtn');
-  copyBtn.removeEventListener('click', copyTableToClipboard); 
-  copyBtn.addEventListener('click', copyTableToClipboard);
+  if (copyBtn) {
+    copyBtn.removeEventListener('click', copyTableToClipboard); 
+    copyBtn.addEventListener('click', copyTableToClipboard);
+  }
 
-  // 5. スクロール処理
-  // 念のため少し遅延させて、ブラウザの描画が追いついてからスクロールさせる
   setTimeout(() => {
      resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 50);
 }
 
-// 🟢 タブ区切り（TSV）形式のデータをクリップボードにコピーする関数
 async function copyTableToClipboard() {
   if (!lastCalculatedScores || lastCalculatedScores.length === 0) return;
 
   const headers = ['キー', '負担スコア(物理)', '使用頻度F(k)', '総合影響度', '指負担P(k)', '距離/最大距離', '押下回数', '担当指'];
-  
-  // Excel等への貼り付け用はカンマではなく「タブ(\t)」で区切る
   let tsvContent = headers.join('\t') + '\n';
 
-  // データを変換
   lastCalculatedScores.forEach(row => {
     const rowData = headers.map(h => {
       let cell = row[h] !== undefined ? String(row[h]) : '';
-      // セル内にタブや改行が含まれていると表が崩れるのでスペースに置換
-      cell = cell.replace(/\t|\n|\r/g, ' ');
-      return cell;
+      return cell.replace(/\t|\n|\r/g, ' ');
     });
     tsvContent += rowData.join('\t') + '\n';
   });
 
-  // クリップボードに書き込み
   try {
     await navigator.clipboard.writeText(tsvContent);
-
   } catch (err) {
     console.error('コピーに失敗しました', err);
     alert('クリップボードへのコピーに失敗しました。');
