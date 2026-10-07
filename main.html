@@ -32,7 +32,7 @@
   </div>
 
   <!-- 🟢 カード外下のナビゲーションエリア（左右に配置） -->
-<div style="display: flex; justify-content: center; gap: 180px; align-items: center; max-width: 800px; margin: 10px auto 20px auto;">
+<div class="main-nav">
     <a href="edit.html" class="btn-secondary btn-small" style="text-decoration: none; display: inline-block;">
         配列の編集
     </a>
@@ -50,7 +50,7 @@
     <p class="score-note">※物理的負担スコアが高い順</p>
     
     <div class="table-responsive">
-      <table id="score-table">
+      <table id="score-table" class="data-table">
         <thead>
           <tr>
             <th>キー</th>
@@ -69,6 +69,7 @@
       </table>
     </div>
   </div>
+  <script src="common.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

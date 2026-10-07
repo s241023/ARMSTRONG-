@@ -1,125 +1,177 @@
-body {
-  font-family: sans-serif;
-  display: flex;
-  flex-direction: column;
-  /* ↓ センター配置だと上に要素がはみ出すことがあるので flex-start に変更 */
-  justify-content: flex-start; 
-  align-items: center;
-  
-  /* ↓ height: 100vh; を削除して、以下を追加 */
-  min-height: 100vh; 
-  padding: 40px 0; /* 上下に余白を持たせる */
+* {
   box-sizing: border-box;
+}
 
+:root {
+  --bg: #f4f4f9;
+  --surface: #ffffff;
+  --text: #333;
+  --muted: #666;
+  --primary: #007bff;
+  --success: #28a745;
+  --danger: #dc3545;
+  --border: #dee2e6;
+  --key-size: 35px;
+  --preview-key-width: 42px;
+  --preview-key-height: 48px;
+}
+
+body {
   margin: 0;
-  background-color: #f4f4f9;
+  min-height: 100vh;
+  padding: 40px 16px;
+  font-family: sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  padding: 10px 15px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+select.mapping-select {
+  width: auto;
+  min-width: 150px;
+  margin-top: 0;
 }
 
 .card {
-  background: #ffffff;
+  width: 450px;
+  max-width: 100%;
+  margin: 0 auto;
   padding: 30px;
+  background: var(--surface);
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  width: 300px;
   text-align: center;
 }
 
-/* ステップの表示制御 */
-.step {
-  display: none;
+.main-card {
+  width: 700px;
 }
-.step.active {
-  display: block;
+
+.result-card {
+  width: 900px;
+  max-width: 100%;
+  margin: 30px auto;
+}
+
+h1,
+h2 {
+  margin-top: 0;
+  color: var(--text);
 }
 
 h2 {
-  margin-top: 0;
   font-size: 1.2rem;
-  color: #333;
 }
 
 p {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--muted);
 }
 
-input, select {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
-  box-sizing: border-box;
-  border: 1px solid #ccc;
+.privacy-note {
+  margin: 16px 0 0;
+  padding: 10px 12px;
   border-radius: 6px;
+  background: #f8f9fa;
+  font-size: 0.85rem;
+}
+
+.step {
+  display: none;
+}
+
+.step.active {
+  display: block;
 }
 
 .buttons {
   margin-top: 25px;
   display: flex;
   justify-content: space-between;
+  gap: 10px;
 }
 
-button {
-  padding: 10px 15px;
-  border: none;
+.btn-success {
+  background: var(--success);
+}
+
+.btn-danger {
+  background: var(--danger);
+}
+
+.btn-primary {
+  background: var(--primary);
+}
+
+.btn-secondary {
+  background: #6c757d;
+}
+
+.btn-small {
+  padding: 7px 12px;
+  font-size: 0.85rem;
+}
+
+/* <a> をボタンとして使っている箇所も、button と同じ見た目にする */
+a.btn-success,
+a.btn-danger,
+a.btn-primary,
+a.btn-secondary {
+  display: inline-block;
+  color: #fff;
+  text-decoration: none;
+  border: 0;
   border-radius: 6px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-  font-weight: bold;
+  font-weight: 700;
 }
 
-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-/* 確認画面用の装飾 */
 .saved-info {
-  background-color: #f8f9fa;
-  border-left: 4px solid #007bff;
-  padding: 10px 15px;
   margin: 15px 0;
-  text-align: left;
+  padding: 10px 15px;
+  border-left: 4px solid var(--primary);
   border-radius: 4px;
+  background: #f8f9fa;
+  text-align: left;
 }
 
 .saved-info p {
   margin: 5px 0;
-  color: #333;
+  color: var(--text);
 }
 
-/* ボタンのカラーバリエーション */
-.btn-success {
-  background-color: #28a745 !important;
-}
-.btn-success:hover {
-  background-color: #218838 !important;
-}
-
-.btn-danger {
-  background-color: #dc3545 !important;
-}
-.btn-danger:hover {
-  background-color: #c82333 !important;
-}
-
-/* -- 既存の .card の部分を少し広げます -- */
-.card {
-  background: #ffffff;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  width: 450px; /* ← 広げました */
-  max-width: 95%;
-  text-align: center;
-}
-
-/* -- 以下を末尾に追記 -- */
-/* キーボードのスタイル */
 .keyboard {
   display: flex;
   flex-direction: column;
@@ -133,150 +185,95 @@ button:hover:not(:disabled) {
   gap: 5px;
 }
 
-/* 実際のキーボードのように少しずつ右にずらす */
-.keyboard-row:nth-child(2) { margin-left: 15px; }
-.keyboard-row:nth-child(3) { margin-left: 30px; }
+.keyboard-row:nth-child(2) {
+  margin-left: 15px;
+}
+
+.keyboard-row:nth-child(3) {
+  margin-left: 30px;
+}
 
 .key {
-  width: 35px;
-  height: 35px;
+  width: var(--key-size);
+  height: var(--key-size);
+  padding: 0;
   border: 1px solid #ccc;
   border-radius: 4px;
-  background-color: #fff;
+  background: #fff;
   color: #333;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 0;
-  transition: all 0.2s;
+  justify-content: center;
+  font-weight: 700;
 }
 
-/* 選択されたキーのスタイル */
 .key.selected {
-  background-color: #007bff;
-  color: white;
+  background: var(--primary);
+  color: #fff;
   border-color: #0056b3;
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
 }
 
-.selected-keys-text {
-  font-weight: bold;
-  color: #007bff;
-  min-height: 20px;
+.key.disabled-key {
+  background: #f8f9fa;
+  color: #ced4da;
+  border-color: #e9ecef;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
-/* --- メイン画面 (main.html) 用の装飾 --- */
-.main-card {
-  width: 400px;
+.key.available-base-key {
+  background: #e7f1ff;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
-.file-upload-area {
-  margin: 20px 0;
-  padding: 20px;
-  border: 2px dashed #007bff;
-  border-radius: 8px;
-  background-color: #f8fbff;
+.key.selected-base {
+  background: var(--success);
+  color: #fff;
+  border-color: #218838;
+  box-shadow: 0 0 5px rgba(40, 167, 69, 0.35);
 }
 
-.file-upload-area input[type="file"] {
-  width: 100%;
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-}
-
-.current-settings {
-  margin-top: 20px;
-  padding: 15px;
-  background: #f1f3f5;
-  border-radius: 6px;
-  text-align: left;
-  font-size: 0.9rem;
-}
-
-.current-settings p {
-  margin: 5px 0;
-  color: #555;
-}
-
-.btn-small {
-  padding: 5px 10px;
-  font-size: 0.8rem;
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 10px;
-}
-
-.btn-small:hover {
-  background-color: #5a6268;
-}
-
-/* スペースキー用のスタイル */
 .space-row {
   justify-content: center;
-  margin-left: 0 !important; /* ずらし解除 */
+  margin-left: 0 !important;
 }
 
 .key.space-key {
-  width: 180px; /* 横長にする */
+  width: 180px;
   font-size: 0.85rem;
 }
 
-/* --- ステップ3用のキースタイル --- */
-.key.disabled-key {
-  background-color: #f8f9fa !important;
-  color: #ced4da !important;
-  border-color: #e9ecef !important;
-  cursor: not-allowed !important;
-  box-shadow: none !important;
+.selected-keys-text {
+  min-height: 20px;
+  font-weight: 700;
+  color: var(--primary);
 }
 
-/* --- 指選択ボタン用のスタイル --- */
 .finger-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
   justify-content: center;
+  gap: 8px;
   margin: 15px 0;
 }
 
 .finger-btn {
-  background-color: #e9ecef;
-  color: #555;
   padding: 8px 12px;
-  border-radius: 20px;
   border: 2px solid transparent;
+  border-radius: 20px;
+  background: #e9ecef;
+  color: #555;
   font-size: 0.85rem;
 }
 
-/* 押して「使用しない」状態になったボタン */
 .finger-btn.selected-finger {
-  background-color: #dc3545; /* 赤色で無効化をアピール */
-  color: white;
+  background: var(--danger);
+  color: #fff;
   border-color: #a71d2a;
 }
-.key.available-base-key {
-  background-color: #e7f1ff;
-  border-color: #007bff;
-  color: #007bff;
-}
 
-/* 基準として選ばれたキーは緑色にする */
-.key.selected-base {
-  background-color: #28a745 !important;
-  color: white !important;
-  border-color: #218838 !important;
-  box-shadow: 0 0 5px rgba(40, 167, 69, 0.5) !important;
-}
-
-/* --- ステップ5: マッピング修正用のスタイル --- */
 #mapping-edit-container {
   display: flex;
   flex-direction: column;
@@ -286,143 +283,312 @@ button:hover:not(:disabled) {
 
 .mapping-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 15px;
-  background-color: #fff;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  background: #fff;
 }
 
 .mapping-key-label {
-  font-weight: bold;
-  font-size: 1.1em;
-  color: #333;
+  font-weight: 700;
 }
 
-.mapping-select {
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #ced4da;
-  font-size: 1rem;
-  background-color: #f8f9fa;
-  cursor: pointer;
+.mapping-select.duplicate-finger {
+  color: var(--danger);
+  border-color: var(--danger);
+  font-weight: 700;
 }
 
+.file-upload-area {
+  margin: 20px 0;
+  padding: 20px;
+  border: 2px dashed var(--primary);
+  border-radius: 8px;
+  background: #f8fbff;
+}
 
-/* --- スコア結果表示エリア --- */
+.file-upload-area input[type="file"] {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.current-settings {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 6px;
+  background: #f1f3f5;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.current-settings p {
+  margin: 5px 0;
+  color: #555;
+}
+
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  width: min(800px, 100%);
+  margin: 10px auto 20px;
+}
+
+.analysis-status {
+  margin-left: 10px;
+  color: var(--success);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .score-container {
+  width: min(1000px, 100%);
   margin: 40px auto 60px;
   padding: 20px;
-  max-width: 1000px;
-  width: 95%; /* 画面幅が狭い場合にも対応 */
-  background-color: #fff;
+  background: #fff;
   border-top: 2px dashed #ccc;
-  border-radius: 8px; /* 少し角丸に */
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* 軽い影をつける */
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
 .score-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 10px;
 }
 
 .score-header h2 {
   margin: 0;
-  color: #333;
 }
 
-.score-note {
-  color: #666;
-  margin-bottom: 15px;
-}
-
-/* テーブルを横スクロール可能にするコンテナ */
 .table-responsive {
-  overflow-x: auto;
   width: 100%;
+  overflow-x: auto;
 }
 
-#score-table {
+.data-table {
   width: 100%;
+  min-width: 650px;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.95em;
-  min-width: 600px; /* テーブルが潰れすぎないように */
 }
 
-#score-table th, 
-#score-table td {
+.data-table th,
+.data-table td {
   padding: 10px 12px;
   border-bottom: 1px solid #eee;
 }
 
-#score-table th {
-  background-color: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  white-space: nowrap; /* ヘッダーは改行しない */
+.data-table th {
+  background: #f8f9fa;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
 }
 
-/* 結果提案ページのカードサイズ拡張 */
-.result-card {
-  width: 700px;
-  max-width: 95%;
-  margin: 30px auto;
+.edit-page {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  padding: 20px;
 }
 
-#suggestion-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 0.9em;
+.edit-keyboard-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  justify-content: center;
 }
 
-#suggestion-table th, 
-#suggestion-table td {
+.edit-key {
+  width: 42px;
+  height: 46px;
+  padding: 0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.edit-key:hover:not(.disabled-key):not(.selected):not(.swapped) {
+  background: #e0e0e0;
+}
+
+.edit-key.selected {
+  background: #4caf50;
+  color: #fff;
+  border-color: #388e3c;
+}
+
+.edit-key.swapped {
+  background: #f44336;
+  color: #fff;
+  border-color: #d32f2f;
+}
+
+.edit-key.disabled-key {
+  background: #e9ecef;
+  color: #6c757d;
+  border-color: #dee2e6;
+  cursor: not-allowed;
+}
+
+.message-area {
+  width: min(800px, 100%);
+  margin: 0 auto 20px;
   padding: 10px;
-  border-bottom: 1px solid #eee;
+  border-radius: 8px;
+  background: #f8f9fa;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
-#suggestion-table th {
-  background-color: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
+.message-area.is-active {
+  color: #388e3c;
 }
 
-.btn-primary {
-  background-color: #007bff !important;
-}
-.btn-primary:hover {
-  background-color: #0056b3 !important;
+.history-page {
+  width: min(1200px, 100%);
+  margin: 0 auto;
 }
 
-/* --- キー配置プレビュー用のスタイル --- */
-.preview-wrapper {
-  width: 100%;
-  max-width: 1100px;
-  margin: 20px auto;
-  padding: 10px;
+.history-card {
+  max-height: 260px;
+  margin-bottom: 30px;
+  padding: 20px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-item {
+  padding: 12px 18px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.history-item:hover {
+  background: #e9ecef;
+}
+
+.history-item.selected {
+  border-left: 6px solid #4caf50;
+  background: #e8f5e9;
+  font-weight: 700;
+}
+
+.preview-area {
+  display: none;
+  margin-bottom: 30px;
+  padding: 30px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.history-preview-container {
+  display: flex;
+  gap: 24px;
+}
+
+.preview-box {
+  flex: 1;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #f9f9f9;
+  overflow-x: auto;
+}
+
+.history-keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.history-key {
+  width: 46px;
+  height: 50px;
+  flex: 0 0 auto;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-key.space-key {
+  width: 280px;
+}
+
+.history-key.swapped-key {
+  background: #ffeb3b;
+  border-color: #fbc02d;
+  font-weight: 700;
 }
 
 .preview-container {
-  margin: 15px 0;
+  width: min(1100px, 100%);
+  margin: 15px auto;
   padding: 20px;
-  background-color: #ffffff;
+  overflow-x: auto;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  border: 1px solid #dee2e6;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  overflow-x: auto; /* 万が一狭い画面でもスクロール可能に */
+  background: #fff;
 }
 
 .preview-keyboard {
+  min-width: 750px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: center;
-  margin: 10px 0;
-  min-width: 750px; /* 見切れないよう十分な横幅を確保 */
+}
+
+/* history.js が描画するキーボードを、各プレビュー内で中央揃えにする */
+#keyboard-preview,
+#current-keyboard-preview {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+#keyboard-preview .keyboard-row,
+#current-keyboard-preview .keyboard-row {
+  width: max-content;
+  margin-left: 0 !important;
+  justify-content: center;
 }
 
 .preview-row {
@@ -430,59 +596,113 @@ button:hover:not(:disabled) {
   gap: 6px;
 }
 
-/* 物理キーボード風のずらし */
-.preview-row:nth-child(2) { margin-left: 20px; }
-.preview-row:nth-child(3) { margin-left: 40px; }
-.preview-row:nth-child(4) { margin-left: 60px; }
+.preview-row:nth-child(2) {
+  margin-left: 20px;
+}
+
+.preview-row:nth-child(3) {
+  margin-left: 40px;
+}
+
+.preview-row:nth-child(4) {
+  margin-left: 60px;
+}
 
 .preview-key {
-  min-width: 42px;
-  height: 48px;
+  width: var(--preview-key-width);
+  min-width: var(--preview-key-width);
+  height: var(--preview-key-height);
   padding: 4px;
   border: 1px solid #ccc;
   border-radius: 6px;
-  background-color: #fff;
-  color: #333;
+  background: #fff;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   font-size: 0.85rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  box-sizing: border-box;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .preview-key.space-key {
   width: 240px;
 }
 
-/* 🟢 一律「入れ替えられたキー」のハイライト */
 .preview-key.swapped-key {
-  background-color: #e2f0ff;
-  border-color: #007bff;
+  background: #e2f0ff;
+  border-color: var(--primary);
   color: #004085;
-  font-weight: bold;
+  font-weight: 700;
 }
 
-.preview-key .original-label {
-  font-size: 0.65rem;
-  color: #666;
+.preview-key[data-customized="true"] {
+  outline: 1px dashed #aaa;
+  outline-offset: -3px;
+}
+
+.original-label {
   margin-top: 2px;
+  color: #666;
+  font-size: 0.65rem;
 }
 
 .preview-legend {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  font-size: 0.85rem;
   margin-top: 15px;
+  font-size: 0.85rem;
 }
 
 .legend-box {
   width: 16px;
   height: 16px;
+  border: 1px solid var(--primary);
   border-radius: 3px;
   background: #e2f0ff;
-  border: 1px solid #007bff;
+}
+
+.target-key {
+  color: var(--danger);
+}
+
+.candidate-key {
+  color: var(--success);
+}
+
+.no-candidate {
+  color: #888;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 800px) {
+  body {
+    padding: 20px 10px;
+  }
+
+  .main-card,
+  .result-card,
+  .card {
+    width: 100%;
+  }
+
+  .history-preview-container {
+    flex-direction: column;
+  }
+
+  .mapping-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  select.mapping-select {
+    width: 100%;
+  }
+
+  .score-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

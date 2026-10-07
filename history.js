@@ -1,11 +1,5 @@
 window.addEventListener('DOMContentLoaded', () => {
-  const DEFAULT_KEYBOARD = [
-    [{ name: '1' }, { name: '2' }, { name: '3' }, { name: '4' }, { name: '5' }, { name: '6' }, { name: '7' }, { name: '8' }, { name: '9' }, { name: '0' }, { name: '-' }, { name: '^' }, { name: '¥' }],
-    [{ name: 'Q' }, { name: 'W' }, { name: 'E' }, { name: 'R' }, { name: 'T' }, { name: 'Y' }, { name: 'U' }, { name: 'I' }, { name: 'O' }, { name: 'P' }, { name: '@' }, { name: '[' }],
-    [{ name: 'A' }, { name: 'S' }, { name: 'D' }, { name: 'F' }, { name: 'G' }, { name: 'H' }, { name: 'J' }, { name: 'K' }, { name: 'L' }, { name: ';' }, { name: ':' }, { name: ']' }],
-    [{ name: 'Z' }, { name: 'X' }, { name: 'C' }, { name: 'V' }, { name: 'B' }, { name: 'N' }, { name: 'M' }, { name: ',' }, { name: '.' }, { name: '/' }, { name: '\\' }],
-    [{ name: 'Space', isSpace: true }]
-  ];
+  const DEFAULT_KEYBOARD = DEFAULT_ROWS; // common.js の共通定義
 
   const historyListEl = document.getElementById('historyList');
   const previewArea = document.getElementById('preview-area');
@@ -33,7 +27,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // 1. 履歴データの読み込みとフィルタリング
-  const rawHistory = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
+  const rawHistory = loadJSON(STORAGE.history, []);
   const validHistory = rawHistory.filter(h => h.swapMap && Object.keys(h.swapMap).length > 0);
 
   if (validHistory.length === 0) {
@@ -122,21 +116,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (confirm(`「${selectedHistoryItem.versionName}」を現在の配列として復元しますか？\n（現在の配列は履歴に移動します）`)) {
       
-      const currentLatest = JSON.parse(localStorage.getItem('latestLayout'));
-      const historyLayouts = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
-      if (currentLatest) {
-        historyLayouts.unshift(currentLatest);
-        localStorage.setItem('historyLayouts', JSON.stringify(historyLayouts));
-      }
-
-      const newSaveData = {
-        id: Date.now(),
-        date: new Date().toLocaleString('ja-JP'),
-        settings: selectedHistoryItem.settings || {},
-        swapMap: selectedHistoryItem.swapMap
-      };
-      
-      localStorage.setItem('latestLayout', JSON.stringify(newSaveData));
+      commitLayout(selectedHistoryItem.swapMap); // 現在の配列を履歴へ退避し、スコアも無効化
 
       alert('過去の配列を適応しました！\n編集画面に戻ります。');
       window.location.href = 'edit.html';

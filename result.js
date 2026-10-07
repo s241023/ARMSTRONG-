@@ -1,7 +1,7 @@
 window.addEventListener('DOMContentLoaded', () => {
   // 1. ローカルストレージからデータの取得
-  const settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
-  const scores = JSON.parse(localStorage.getItem('calculatedScores') || '[]');
+  const settings = loadJSON(STORAGE.settings, {});
+  const scores = loadJSON(STORAGE.scores, []);
 
   if (!scores || scores.length === 0) {
     alert('スコアデータが見つかりません。メイン画面から解析を行ってください。');
@@ -10,38 +10,11 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // 標準QWERTYレイアウト構造（初期配置定義）
-  const DEFAULT_KEYBOARD_ROWS = [
-    [{ name: '1' }, { name: '2' }, { name: '3' }, { name: '4' }, { name: '5' }, { name: '6' }, { name: '7' }, { name: '8' }, { name: '9' }, { name: '0' }, { name: '-' }, { name: '^' }, { name: '¥' }],
-    [{ name: 'Q' }, { name: 'W' }, { name: 'E' }, { name: 'R' }, { name: 'T' }, { name: 'Y' }, { name: 'U' }, { name: 'I' }, { name: 'O' }, { name: 'P' }, { name: '@' }, { name: '[' }],
-    [{ name: 'A' }, { name: 'S' }, { name: 'D' }, { name: 'F' }, { name: 'G' }, { name: 'H' }, { name: 'J' }, { name: 'K' }, { name: 'L' }, { name: ';' }, { name: ':' }, { name: ']' }],
-    [{ name: 'Z' }, { name: 'X' }, { name: 'C' }, { name: 'V' }, { name: 'B' }, { name: 'N' }, { name: 'M' }, { name: ',' }, { name: '.' }, { name: '/' }, { name: '\\' }],
-    [{ name: 'Space', isSpace: true }]
-  ];
+  const DEFAULT_KEYBOARD_ROWS = DEFAULT_ROWS; // common.js の共通定義
 
-  // 🟢 「提案前（解析・計算時）」の最新キー配列を構築
-  const KEYBOARD_ROWS = JSON.parse(JSON.stringify(DEFAULT_KEYBOARD_ROWS));
-  const savedLayoutStr = localStorage.getItem('latestLayout');
-  if (savedLayoutStr) {
-    try {
-      const savedLayout = JSON.parse(savedLayoutStr);
-      if (savedLayout && savedLayout.swapMap) {
-        const pastSwap = savedLayout.swapMap;
-        KEYBOARD_ROWS.forEach(row => {
-          row.forEach(keyObj => {
-            if (!keyObj.isSpace && pastSwap[keyObj.name]) {
-              keyObj.name = pastSwap[keyObj.name];
-            }
-          });
-        });
-      }
-    } catch (e) {
-      console.error('latestLayoutの読み込みに失敗しました', e);
-    }
-  }
+  // 「提案前（解析・計算時）」の最新キー配列を構築
+  const KEYBOARD_ROWS = applySwapMap(DEFAULT_KEYBOARD_ROWS, loadJSON(STORAGE.latest, null)?.swapMap);
 
-  // 🟢 数字キーおよび Space キーを除外リストに指定
-  const excludedKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Space', 'space'];
-  const isExcludedKey = (keyName) => excludedKeys.includes(keyName.trim());
 
   // 2. 設定情報の簡易表示
   const displayHands = document.getElementById('user-hands');
@@ -213,52 +186,12 @@ window.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 🟢 標準QWERTYに対する累計swapMapを算出（main.jsやedit.jsとのデータ不整合を防止）
-    const cumulativeSwapMap = {};
+    // 提案前の配置に今回の提案を適用し、標準QWERTYとの差分(累計swapMap)を保存する
     const finalKeyboard = JSON.parse(JSON.stringify(KEYBOARD_ROWS));
-
-    // 提案前の配置（KEYBOARD_ROWS）に今回の提案（proposedSwapMap）を適用
-    finalKeyboard.forEach(row => {
-      row.forEach(keyObj => {
-        if (!keyObj.isSpace && proposedSwapMap[keyObj.name]) {
-          keyObj.name = proposedSwapMap[keyObj.name];
-        }
-      });
-    });
-
-    // 標準QWERTYの位置キー名と比較して全累計の swapMap を作成
-    for (let r = 0; r < DEFAULT_KEYBOARD_ROWS.length; r++) {
-      for (let c = 0; c < DEFAULT_KEYBOARD_ROWS[r].length; c++) {
-        if (!DEFAULT_KEYBOARD_ROWS[r][c].isSpace) {
-          const defaultKey = DEFAULT_KEYBOARD_ROWS[r][c].name;
-          const finalKey = finalKeyboard[r][c].name;
-          if (defaultKey !== finalKey) {
-            cumulativeSwapMap[defaultKey] = finalKey;
-          }
-        }
-      }
-    }
-
-    // 今回保存する新しいデータ
-    const newSaveData = {
-      id: Date.now(),
-      date: new Date().toLocaleString('ja-JP'),
-      settings: settings,
-      swapMap: cumulativeSwapMap
-    };
-
-    // 1. 現在の「最新配列 (latestLayout)」が既に存在するかチェック
-    const currentLatest = JSON.parse(localStorage.getItem('latestLayout'));
-
-    // 2. もし既に最新配列があれば、それを「旧配列保存タブ (historyLayouts)」の先頭に押し出す
-    if (currentLatest) {
-      const historyLayouts = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
-      historyLayouts.unshift(currentLatest);
-      localStorage.setItem('historyLayouts', JSON.stringify(historyLayouts));
-    }
-
-    // 3. 今回のデータを新たな「最新配列 (latestLayout)」として単独で上書き保存
-    localStorage.setItem('latestLayout', JSON.stringify(newSaveData));
+    finalKeyboard.forEach(row => row.forEach(keyObj => {
+      if (!keyObj.isSpace && proposedSwapMap[keyObj.name]) keyObj.name = proposedSwapMap[keyObj.name];
+    }));
+    commitLayout(buildSwapMap(finalKeyboard)); // 履歴退避・最新更新・スコア無効化
 
     // 4. ボタンの見た目を変更してフィードバック
     const btn = document.getElementById('saveConfigBtn');

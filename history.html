@@ -2,106 +2,12 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>過去の配列履歴</title>
-  <style>
-    body { 
-      font-family: sans-serif; 
-      background-color: #f4f7f6; 
-      padding: 30px 50px; 
-      margin: 0;
-      color: #333;
-    }
-    h2 { 
-      border-bottom: 2px solid #4CAF50; 
-      padding-bottom: 10px; 
-      margin-bottom: 20px; 
-    }
-    
-    /* 🟢 履歴リスト部分のみをカード化＆独立スクロール枠に指定 */
-    .history-card {
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 30px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      max-height: 260px; /* 件数が増えてもここだけ縦スクロール */
-      overflow-y: auto;
-    }
-    .history-list { 
-      display: flex; 
-      flex-direction: column; 
-      gap: 10px; 
-    }
-    .history-item { 
-      padding: 12px 18px; 
-      border: 1px solid #eee; 
-      border-radius: 6px;
-      background-color: #fafafa; 
-      cursor: pointer; 
-      transition: 0.2s; 
-      font-size: 15px;
-    }
-    .history-item:hover { background-color: #e9ecef; }
-    .history-item.selected { 
-      border-left: 6px solid #4CAF50; 
-      background-color: #e8f5e9; 
-      font-weight: bold; 
-    }
-    
-    /* プレビューエリア（画面幅を活かしたワイドレイアウトを維持） */
-    #preview-area { 
-      display: none; 
-      padding: 30px; 
-      background: #fff; 
-      border: 1px solid #eee; 
-      border-radius: 8px;
-      margin-bottom: 30px; 
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    }
-    .preview-container { 
-      display: flex; 
-      gap: 40px; 
-      justify-content: space-between; 
-    }
-    .preview-box { 
-      flex: 1; 
-      background: #f9f9f9; 
-      padding: 25px; 
-      border: 1px solid #ddd; 
-      border-radius: 6px;
-    }
-    
-    /* キーボード表示スタイル */
-    .keyboard-row { 
-      display: flex; 
-      gap: 8px; 
-      margin-bottom: 8px; 
-      justify-content: center; 
-    }
-    .key {
-      width: 46px; 
-      height: 50px; 
-      border: 1px solid #ccc; 
-      border-radius: 4px;
-      display: flex; 
-      justify-content: center; 
-      align-items: center; 
-      background-color: #fff;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-      font-size: 16px;
-    }
-    .swapped-key { background-color: #ffeb3b !important; border-color: #fbc02d !important; font-weight: bold; }
-    .space-key { width: 280px !important; }
-    
-    .btn { padding: 12px 30px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-    .btn-primary { background-color: #4CAF50; color: white; }
-    .btn-primary:hover { background-color: #45a049; }
-    .btn-secondary { background-color: #6c757d; color: white; }
-    .btn-secondary:hover { background-color: #5a6268; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <main class="history-page">
   <h2>🕒 過去のキーボード配列履歴</h2>
   <p>過去に保存されたカスタマイズ配列の一覧です。（標準のQWERTY配列は除外されています）</p>
 
@@ -127,14 +33,17 @@
     </div>
     
     <div style="text-align: center; margin-top: 35px;">
-      <button id="applyBtn" class="btn btn-primary">✅ この過去の配列を適応する</button>
+      <button id="applyBtn" class="btn-primary">✅ この過去の配列を適応する</button>
     </div>
   </div>
 
   <div style="text-align: left; margin-bottom: 40px;">
-    <button id="backBtn" class="btn btn-secondary">編集画面に戻る</button>
+    <button id="backBtn" class="btn-secondary">編集画面に戻る</button>
   </div>
 
+  </main>
+
+  <script src="common.js"></script>
   <script src="history.js"></script>
 </body>
 </html>

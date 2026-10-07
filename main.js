@@ -50,7 +50,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedData = localStorage.getItem('appSettings');
   
   if (savedData) {
-    const settings = JSON.parse(savedData);
+    const settings = loadJSON(STORAGE.settings, {});
     
     // 使用する手の表示変換
     let handsText = '不明';
@@ -97,33 +97,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (resetQwertyBtn) {
     resetQwertyBtn.addEventListener('click', () => {
       if (confirm('現在の配列設定を初期QWERTY配列に戻しますか？\n（現在のカスタム配列は履歴に保存されます）')) {
-        const savedDataStr = localStorage.getItem('latestLayout');
-        let settings = {};
-
-        if (savedDataStr) {
-          try {
-            const savedLayout = JSON.parse(savedDataStr);
-            settings = savedLayout.settings || {};
-            
-            // 入れ替え設定が存在する場合は履歴（historyLayouts）に押し出す
-            if (savedLayout.swapMap && Object.keys(savedLayout.swapMap).length > 0) {
-              const historyLayouts = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
-              historyLayouts.unshift(savedLayout);
-              localStorage.setItem('historyLayouts', JSON.stringify(historyLayouts));
-            }
-          } catch (e) {
-            console.error('履歴への保存処理に失敗しました', e);
-          }
-        }
-
-        // latestLayout を標準QWERTY配列 (swapMap: {}) として保存
-        const resetData = {
-          id: Date.now(),
-          date: new Date().toLocaleString('ja-JP'),
-          settings: settings,
-          swapMap: {}
-        };
-        localStorage.setItem('latestLayout', JSON.stringify(resetData));
+        commitLayout({}); // 現在の配列を履歴へ退避し、QWERTYを最新に(スコアも無効化)
 
         alert('初期配列(QWERTY)にリセットしました。');
         location.reload(); // 画面を更新して標準配列に戻す
@@ -135,6 +109,8 @@ window.addEventListener('DOMContentLoaded', () => {
 // ファイルが選択されたら「送信ボタン」を有効化する
 fileInput.addEventListener('change', () => {
   sendBtn.disabled = fileInput.files.length === 0;
+  const next = document.getElementById('nextPageBtn'); // 前回の結果へ進めないようにする
+  if (next) next.style.display = 'none';
 });
 
 sendBtn.addEventListener('click', () => {
@@ -200,6 +176,16 @@ sendBtn.addEventListener('click', () => {
         shortcutKeys = parseBlock(arrayMatches[2]);
       }
 
+      // 解析に失敗したときは「完了」にせず、古いスコアも残さない
+      if (!totalMatch || Object.keys(normalKeys).length === 0) {
+        progressBar.style.display = 'none';
+        sendBtn.disabled = false;
+        lastCalculatedScores = null;
+        localStorage.removeItem(STORAGE.scores);
+        alert('ログの形式を読み取れませんでした。.keylog2 ファイルを確認してください。');
+        return;
+      }
+
       progressBar.value = 100;
 
       console.log('=== Keylog2 解析結果 ===');
@@ -251,6 +237,11 @@ sendBtn.addEventListener('click', () => {
       }
     };
 
+    reader.onerror = () => {
+      progressBar.style.display = 'none';
+      sendBtn.disabled = false;
+      alert('ファイルを読み込めませんでした。');
+    };
     reader.readAsText(file);
     
   } else {
@@ -304,7 +295,7 @@ function calculateMaxDistances(homeCoords, fingerMapping) {
     });
 
     if (closestHome && minDistance > closestHome.maxDistance) {
-      closestHome.maxDistance = Math.round(minDistance * 100) / 100;
+      closestHome.maxDistance = minDistance; // 丸めない(距離/最大距離が1を超えるのを防ぐ)
       closestHome.farthestKey = keyObj.name;
       closestHome.farthestCoord = keyObj.coordStr;
     }

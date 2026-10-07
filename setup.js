@@ -61,6 +61,9 @@ nextBtn.addEventListener('click', () => {
     if (selectedCoords.length === 0) {
       alert('ホームポジションを1つ以上選択してください。'); return;
     }
+    if (document.getElementById('usehands').value === 'r&l' && selectedCoords.length < 2) {
+      alert('両手を使う場合は、ホームポジションを2つ以上選択してください。'); return;
+    }
   } else if (currentStepElement.id === 'step-3') {
     if (!baseCoordStep3) {
       alert('基準となるキーを1つ選択してください。'); return;
@@ -294,6 +297,8 @@ function buildStep5() {
       select.appendChild(option);
     });
     
+    currentMapping[coord] = select.value; // 画面の表示値と保存値を一致させる
+
     // ドロップダウンが変更されたらデータを上書きし、重複チェックを実行
     select.addEventListener('change', (e) => {
       currentMapping[coord] = e.target.value;
@@ -348,24 +353,23 @@ function getBaseFingerNameEng(side) {
   return 'index';
 }
 
-// 物理キーボード入力
+// 物理キーボード入力(e.code ベース:IME オンや配列の違いに左右されない)
+const CODE_TO_KEY = { Semicolon: ';', Comma: ',', Period: '.', Slash: '/', Space: 'SPACE' };
+const STEP_SCOPE = { 'step-2': '#step-2', 'step-3': '#step3-keyboard-area', 'step-4': '#step4-keyboard-area' };
+
 document.addEventListener('keydown', (e) => {
-  let keyChar = e.key === ' ' || e.code === 'Space' ? 'SPACE' : e.key.toUpperCase();
-  if (keyChar === 'SPACE') e.preventDefault();
-
-  const currentStepElement = activeSteps[currentStepIndex];
-  if (!currentStepElement) return;
-
-  if (currentStepElement.id === 'step-2') {
-    const keyEl = document.querySelector(`#step-2 .key[data-key="${keyChar}"]`);
-    if (keyEl) toggleKey(keyEl.getAttribute('data-coord'), keyEl);
-  } else if (currentStepElement.id === 'step-3') {
-    const keyEl = document.querySelector(`#step3-keyboard-area .key[data-key="${keyChar}"]`);
-    if (keyEl && !keyEl.classList.contains('disabled-key')) toggleBaseKeyStep3(keyEl.getAttribute('data-coord'), keyEl);
-  } else if (currentStepElement.id === 'step-4') {
-    const keyEl = document.querySelector(`#step4-keyboard-area .key[data-key="${keyChar}"]`);
-    if (keyEl && !keyEl.classList.contains('disabled-key')) toggleBaseKeyStep4(keyEl.getAttribute('data-coord'), keyEl);
-  }
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;   // Ctrl+R や長押しでは動かさない
+  const key = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3) : CODE_TO_KEY[e.code];
+  const stepId = activeSteps[currentStepIndex]?.id;
+  const scope = STEP_SCOPE[stepId];
+  if (!key || !scope) return;
+  if (key === 'SPACE') e.preventDefault();                       // 対象ステップの中だけ止める
+  const keyEl = [...document.querySelectorAll(`${scope} .key`)].find(k => k.dataset.key === key);
+  if (!keyEl || keyEl.classList.contains('disabled-key')) return;
+  const coord = keyEl.getAttribute('data-coord');
+  if (stepId === 'step-2') toggleKey(coord, keyEl);
+  else if (stepId === 'step-3') toggleBaseKeyStep3(coord, keyEl);
+  else toggleBaseKeyStep4(coord, keyEl);
 });
 
 // --- 指の自動マッピング計算 ---
@@ -444,6 +448,7 @@ saveBtn.addEventListener('click', () => {
     fingerMapping: currentMapping // 🟢 修正結果が反映されたデータを保存
   };
   localStorage.setItem('appSettings', JSON.stringify(settingsData));
+  localStorage.removeItem(STORAGE.scores); // 設定が変わると古いスコアは無効
   window.location.href = 'main.html';
 });
 
@@ -460,7 +465,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 window.addEventListener('DOMContentLoaded', () => {
   const savedData = localStorage.getItem('appSettings');
   if (savedData) {
-    const settings = JSON.parse(savedData);
+    const settings = loadJSON(STORAGE.settings, {});
     if (settings.usehands) document.getElementById('usehands').value = settings.usehands;
     if (settings.homeCoords && Array.isArray(settings.homeCoords)) {
       selectedCoords = settings.homeCoords;
@@ -477,7 +482,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (settings.fingerMapping) {
       const mappingDisplay = Object.entries(settings.fingerMapping)
-        .map(([coord, fingerId]) => `${coord}:${fingerNames[fingerId]}`)
+        .map(([coord, fingerId]) => `${coord}:${fingerNames[fingerId] || fingerId}`)
         .join(' / ');
       document.getElementById('confirm-mapping').textContent = mappingDisplay;
     }

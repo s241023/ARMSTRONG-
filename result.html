@@ -7,7 +7,8 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- 🟢 カード枠を廃止し幅を広く使ったラッパー -->
+  <!-- ページ全体のラッパー -->
+  <div style="width: min(1200px, 100%); margin: 0 auto;">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
     <h2 style="margin: 0;">⌨️ 入れ替え後キー配置プレビュー</h2>
     <div style="display: flex; gap: 10px; margin: 0% 10px">
@@ -36,15 +37,15 @@
   </div>
 
   <!-- 🟢 隠しコマンド（score）で表示される詳細テーブルエリア -->
-  <div id="suggestion-area" class="card result-card" style="display: none; margin-top: 30px;">
+  <div id="suggestion-area" class="result-card" style="display: none; margin-top: 30px;">
     <h3>📊 詳細データ・提案リスト</h3>
     <div style="text-align: left; margin-top: 10px; font-size: 0.85em; color: #555;">
-      <p style="margin: 3px 0;"><strong>【改善対象】</strong> 負担スコア $\ge 0.75$ かつ 使用頻度 $> 0\%$（使用頻度順）</p>
+      <p style="margin: 3px 0;"><strong>【改善対象】</strong> 負担スコア ≥ 0.75 かつ 使用頻度 &gt; 0%（使用頻度順）</p>
       <p style="margin: 3px 0;"><strong>【交換条件】</strong> 対象キーより負担・頻度ともに低く、総合的に最も数値が小さいキーと交換</p>
     </div>
 
     <div class="table-responsive" style="margin-top: 15px;">
-      <table id="suggestion-table">
+      <table id="suggestion-table" class="data-table">
         <thead>
           <tr>
             <th>順位</th>
@@ -63,6 +64,7 @@
     </div>
   </div>
 
+  <script src="common.js"></script>
   <script src="result.js"></script>
 </body>
 </html>

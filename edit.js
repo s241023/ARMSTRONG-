@@ -1,39 +1,13 @@
 window.addEventListener('DOMContentLoaded', () => {
-  const DEFAULT_KEYBOARD = [
-    [{ name: '1' }, { name: '2' }, { name: '3' }, { name: '4' }, { name: '5' }, { name: '6' }, { name: '7' }, { name: '8' }, { name: '9' }, { name: '0' }, { name: '-' }, { name: '^' }, { name: '¥' }],
-    [{ name: 'Q' }, { name: 'W' }, { name: 'E' }, { name: 'R' }, { name: 'T' }, { name: 'Y' }, { name: 'U' }, { name: 'I' }, { name: 'O' }, { name: 'P' }, { name: '@' }, { name: '[' }],
-    [{ name: 'A' }, { name: 'S' }, { name: 'D' }, { name: 'F' }, { name: 'G' }, { name: 'H' }, { name: 'J' }, { name: 'K' }, { name: 'L' }, { name: ';' }, { name: ':' }, { name: ']' }],
-    [{ name: 'Z' }, { name: 'X' }, { name: 'C' }, { name: 'V' }, { name: 'B' }, { name: 'N' }, { name: 'M' }, { name: ',' }, { name: '.' }, { name: '/' }, { name: '\\' }],
-    [{ name: 'Space', isSpace: true }]
-  ];
+  const DEFAULT_KEYBOARD = DEFAULT_ROWS; // common.js の共通定義
 
-  // 🟢 編集・入れ替えを禁止するキーの定義（数字キー + Spaceキー）
-  const EXCLUDED_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Space', 'space'];
-  const isExcludedKey = (keyObj) => keyObj.isSpace || EXCLUDED_KEYS.includes(keyObj.name.trim());
 
   let currentKeyboard = JSON.parse(JSON.stringify(DEFAULT_KEYBOARD));
   let settings = {};
 
   // 1. 最新の保存データを読み込み、現在の配列に適用する
-  const savedDataStr = localStorage.getItem('latestLayout');
-  if (savedDataStr) {
-    try {
-      const savedLayout = JSON.parse(savedDataStr);
-      settings = savedLayout.settings || {};
-      if (savedLayout.swapMap) {
-        const swap = savedLayout.swapMap;
-        currentKeyboard.forEach(row => {
-          row.forEach(keyObj => {
-            if (!keyObj.isSpace && swap[keyObj.name]) {
-              keyObj.name = swap[keyObj.name];
-            }
-          });
-        });
-      }
-    } catch (e) {
-      console.error('データの読み込みに失敗しました', e);
-    }
-  }
+  const savedLayout = loadJSON(STORAGE.latest, null);
+  if (savedLayout && savedLayout.swapMap) currentKeyboard = applySwapMap(currentKeyboard, savedLayout.swapMap);
 
   // 読み込みが完了した時点の配列を「比較のベース」として記憶しておく
   const initialKeyboard = JSON.parse(JSON.stringify(currentKeyboard));
@@ -152,40 +126,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // 初回描画
   render();
 
-  // 5. 保存して終了ボタン
+  // 5. 保存して終了ボタン(履歴・最新配列・スコア無効化は commitLayout が担当)
   document.getElementById('saveBtn').addEventListener('click', () => {
-    const newSwapMap = {};
-
-    // 画面上の配列とQWERTYを比較して、新しい swapMap を逆算する
-    for (let r = 0; r < DEFAULT_KEYBOARD.length; r++) {
-      for (let c = 0; c < DEFAULT_KEYBOARD[r].length; c++) {
-        if (!DEFAULT_KEYBOARD[r][c].isSpace) {
-          const defaultKey = DEFAULT_KEYBOARD[r][c].name;
-          const currentKey = currentKeyboard[r][c].name;
-          if (defaultKey !== currentKey) {
-            newSwapMap[defaultKey] = currentKey;
-          }
-        }
-      }
-    }
-
-    const newSaveData = {
-      id: Date.now(),
-      date: new Date().toLocaleString('ja-JP'),
-      settings: settings,
-      swapMap: newSwapMap
-    };
-
-    // 履歴管理の処理（最新を過去に押し出して、今回を最新にする）
-    const currentLatest = JSON.parse(localStorage.getItem('latestLayout'));
-    if (currentLatest) {
-      const historyLayouts = JSON.parse(localStorage.getItem('historyLayouts') || '[]');
-      historyLayouts.unshift(currentLatest);
-      localStorage.setItem('historyLayouts', JSON.stringify(historyLayouts));
-    }
-
-    localStorage.setItem('latestLayout', JSON.stringify(newSaveData));
-    
+    commitLayout(buildSwapMap(currentKeyboard));
     alert('手動編集した配列を保存しました！\nメイン画面に戻ります。');
     window.location.href = 'main.html';
   });
