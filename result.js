@@ -1,6 +1,6 @@
 window.addEventListener('DOMContentLoaded', () => {
   // 1. ローカルストレージからデータの取得
-  const settings = loadJSON(STORAGE.settings, {});
+  const settings = getSettings() ?? {};
   const scores = loadJSON(STORAGE.scores, []);
 
   if (!scores || scores.length === 0) {
@@ -21,11 +21,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const displayCoordsCount = document.getElementById('user-coords-count');
   
   if (displayHands) {
-    let handsText = '未設定';
-    if (settings.usehands === 'right') handsText = '右手のみ';
-    if (settings.usehands === 'left') handsText = '左手のみ';
-    if (settings.usehands === 'r&l') handsText = '両手';
-    displayHands.textContent = handsText;
+    displayHands.textContent = HAND_LABELS[settings.usehands] ?? '未設定';
   }
   if (displayCoordsCount) {
     displayCoordsCount.textContent = settings.homeCoords ? `${settings.homeCoords.length} 箇所` : '0';
@@ -93,26 +89,26 @@ window.addEventListener('DOMContentLoaded', () => {
     if (candidate) {
       usedCandidates.add(candidate.キー);
 
-      // 🟢 互いの移動先を記録
+      // 互いの移動先を記録
       proposedSwapMap[target.キー] = candidate.キー;
       proposedSwapMap[candidate.キー] = target.キー;
 
       tr.innerHTML = `
         <td><strong>${index + 1}</strong></td>
-        <td><strong style="color: #dc3545;">${target.キー}</strong></td>
+        <td><strong class="target-key">${target.キー}</strong></td>
         <td>${target['使用頻度F(k)']}</td>
         <td>${target['負担スコア(物理)']}</td>
-        <td><strong style="color: #28a745;">${candidate.キー}</strong></td>
+        <td><strong class="candidate-key">${candidate.キー}</strong></td>
         <td>${candidate['負担スコア(物理)']}</td>
         <td>${candidate['使用頻度F(k)']}</td>
       `;
     } else {
       tr.innerHTML = `
         <td><strong>${index + 1}</strong></td>
-        <td><strong style="color: #dc3545;">${target.キー}</strong></td>
+        <td><strong class="target-key">${target.キー}</strong></td>
         <td>${target['使用頻度F(k)']}</td>
         <td>${target['負担スコア(物理)']}</td>
-        <td colspan="3" style="color: #888; text-align: center; font-size: 0.85em;">条件に合致する交換先なし</td>
+        <td colspan="3" class="no-candidate">条件に合致する交換先なし</td>
       `;
     }
     tbody.appendChild(tr);
@@ -132,11 +128,11 @@ window.addEventListener('DOMContentLoaded', () => {
         keyDiv.className = 'preview-key';
         if (keyObj.isSpace) keyDiv.classList.add('space-key');
 
-        const originalName = keyObj.name; // 🟢 提案前（計算時）のキー名
-        const newKey = proposedSwapMap[originalName]; // 🟢 提案後のキー名
+        const originalName = keyObj.name; // 提案前（計算時）のキー名
+        const newKey = proposedSwapMap[originalName]; // 提案後のキー名
 
         if (newKey) {
-          // 🟢 入れ替えが発生したキーを一律ハイライト
+          // 入れ替えが発生したキーを一律ハイライト
           keyDiv.classList.add('swapped-key');
           keyDiv.innerHTML = `
             <span>${newKey}</span>
@@ -155,23 +151,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
   renderKeyboardPreview();
 
-  // 7. 隠しコマンド（"score"）の監視
-  let secretCommand = '';
-  document.addEventListener('keydown', (e) => {
-    if (/^[a-zA-Z]$/.test(e.key)) {
-      secretCommand += e.key.toLowerCase();
-      if (secretCommand.length > 10) {
-        secretCommand = secretCommand.slice(-10);
-      }
-      
-      if (secretCommand.endsWith('score')) {
-        const suggestionArea = document.getElementById('suggestion-area');
-        if (suggestionArea) {
-          suggestionArea.style.display = 'block';
-          suggestionArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-    }
+  // 7. 隠しコマンド("score")で詳細テーブルを表示
+  onSecretCommand('score', () => {
+    const area = document.getElementById('suggestion-area');
+    if (!area) return;
+    area.style.display = 'block';
+    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   // 戻るボタン
@@ -179,7 +164,7 @@ window.addEventListener('DOMContentLoaded', () => {
     window.location.href = 'main.html';
   });
 
-  // 🟢 ローカルストレージに最新と履歴を分けて保存する処理
+  // ローカルストレージに最新と履歴を分けて保存する処理
   document.getElementById('saveConfigBtn').addEventListener('click', () => {
     if (Object.keys(proposedSwapMap).length === 0) {
       alert('入れ替えされたキーが存在しません。');

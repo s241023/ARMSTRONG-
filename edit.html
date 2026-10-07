@@ -8,7 +8,7 @@
 </head>
 <body>
   <main class="edit-page">
-    <h2 style="text-align: center;">✏️ キー配列の手動編集</h2>
+    <h2>✏️ キー配列の手動編集</h2>
     
     <!-- 状態を表示するメッセージエリア -->
     <div id="message" class="message-area">
@@ -16,18 +16,18 @@
     </div>
     
     <!-- キーボード描画エリア -->
-    <div id="keyboard-editor" style="display: flex; flex-direction: column; gap: 8px; align-items: center; margin-bottom: 30px;">
+    <div id="keyboard-editor">
       <!-- JavaScriptで描画されます -->
     </div>
 
-    <div style="text-align: right; margin-top: 15px; margin-bottom: 20px;">
-      <a href="history.html" class="btn-secondary btn-small" style="text-decoration: none; display: inline-block;">
+    <div class="edit-links">
+      <a href="history.html" class="btn-secondary btn-small">
         🕒 過去のキーボード配列閲覧
       </a>
     </div>    
 
     <!-- アクションボタン -->
-    <div style="display: flex; justify-content: center; gap: 10px;">
+    <div class="edit-actions">
       <button id="cancelBtn" class="btn-small">キャンセル (戻る)</button>
       <button id="saveBtn" class="btn-success btn-small">💾 保存して終了</button>
     </div>

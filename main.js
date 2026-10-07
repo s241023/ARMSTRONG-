@@ -1,459 +1,193 @@
-// 要素の取得
+// main.js — ログ解析画面。キー配置・指・定数は common.js を参照する
 const fileInput = document.getElementById('fileInput');
 const sendBtn = document.getElementById('sendBtn');
-const displayHands = document.getElementById('display-hands');
-const displayCoords = document.getElementById('display-coords');
-const changeSettingsBtn = document.getElementById('changeSettingsBtn');
+const nextPageBtn = document.getElementById('nextPageBtn');
 
-// 🟢 最大距離データを保持する独立した変数
-let maxDistanceResults = null;
+let maxDistanceResults = null;                        // ホームごとの最大距離
+let lastCalculatedScores = loadJSON(STORAGE.scores, null);
 
-// 🟢 スコア結果を保持する変数と、隠しコマンド用の変数
-let lastCalculatedScores = null;
-let secretCommand = '';
+// 現在の配列(保存済み swapMap を反映)。基準の KEY_LAYOUT は変更せずコピーを使う
+const ALL_KEYS_LAYOUT = applySwapToKeys(KEY_LAYOUT, loadJSON(STORAGE.latest, null)?.swapMap);
 
-// 🟢 どこからでも参照できるようにキー配置データを一番上で定義
-const ALL_KEYS_LAYOUT = [
-  { coordStr: '[0,-1]', name: '1', x: 0, y: -1 }, { coordStr: '[1,-1]', name: '2', x: 1, y: -1 }, { coordStr: '[2,-1]', name: '3', x: 2, y: -1 }, { coordStr: '[3,-1]', name: '4', x: 3, y: -1 }, { coordStr: '[4,-1]', name: '5', x: 4, y: -1 }, { coordStr: '[5,-1]', name: '6', x: 5, y: -1 }, { coordStr: '[7,-1]', name: '7', x: 7, y: -1 }, { coordStr: '[8,-1]', name: '8', x: 8, y: -1 }, { coordStr: '[9,-1]', name: '9', x: 9, y: -1 }, { coordStr: '[10,-1]', name: '0', x: 10, y: -1 }, { coordStr: '[11,-1]', name: '-', x: 11, y: -1 }, { coordStr: '[12,-1]', name: '^', x: 12, y: -1 }, { coordStr: '[13,-1]', name: '¥', x: 13, y: -1 },
-  { coordStr: '[0,0]', name: 'Q', x: 0, y: 0 }, { coordStr: '[1,0]', name: 'W', x: 1, y: 0 }, { coordStr: '[2,0]', name: 'E', x: 2, y: 0 }, { coordStr: '[3,0]', name: 'R', x: 3, y: 0 }, { coordStr: '[4,0]', name: 'T', x: 4, y: 0 }, { coordStr: '[5,0]', name: 'Y', x: 5, y: 0 }, { coordStr: '[6,0]', name: 'U', x: 6, y: 0 }, { coordStr: '[7,0]', name: 'I', x: 7, y: 0 }, { coordStr: '[8,0]', name: 'O', x: 8, y: 0 }, { coordStr: '[9,0]', name: 'P', x: 9, y: 0 }, { coordStr: '[10,0]', name: '@', x: 10, y: 0 }, { coordStr: '[11,0]', name: '[', x: 11, y: 0 },
-  { coordStr: '[0,1]', name: 'A', x: 0, y: 1 }, { coordStr: '[1,1]', name: 'S', x: 1, y: 1 }, { coordStr: '[2,1]', name: 'D', x: 2, y: 1 }, { coordStr: '[3,1]', name: 'F', x: 3, y: 1 }, { coordStr: '[4,1]', name: 'G', x: 4, y: 1 }, { coordStr: '[5,1]', name: 'H', x: 5, y: 1 }, { coordStr: '[6,1]', name: 'J', x: 6, y: 1 }, { coordStr: '[7,1]', name: 'K', x: 7, y: 1 }, { coordStr: '[8,1]', name: 'L', x: 8, y: 1 }, { coordStr: '[9,1]', name: ';', x: 9, y: 1 }, { coordStr: '[10,1]', name: ':', x: 10, y: 1 }, { coordStr: '[11,1]', name: ']', x: 11, y: 1 },
-  { coordStr: '[0,2]', name: 'Z', x: 0, y: 2 }, { coordStr: '[1,2]', name: 'X', x: 1, y: 2 }, { coordStr: '[2,2]', name: 'C', x: 2, y: 2 }, { coordStr: '[3,2]', name: 'V', x: 3, y: 2 }, { coordStr: '[4,2]', name: 'B', x: 4, y: 2 }, { coordStr: '[5,2]', name: 'N', x: 5, y: 2 }, { coordStr: '[6,2]', name: 'M', x: 6, y: 2 }, { coordStr: '[7,2]', name: ',', x: 7, y: 2 }, { coordStr: '[8,2]', name: '.', x: 8, y: 2 }, { coordStr: '[9,2]', name: '/', x: 9, y: 2 }, { coordStr: '[10,2]', name: '\\', x: 10, y: 2 },
-  { coordStr: '[4,4]', name: 'Space', x: 4, y: 4 }
-];
+// ログ上のキー名 → 配列上のキー名
+const LOG_KEY_ALIASES = { '左角括弧': '[', '右角括弧': ']', 'コロン': ':', 'コンマ': ',' };
 
-// ページ読み込み時にローカルストレージの設定を取得して表示する
 window.addEventListener('DOMContentLoaded', () => {
-  
-  // 🟢 保存した配列があればアラートなしで自動適用
-  const savedDataStr = localStorage.getItem('latestLayout');
-  if (savedDataStr) {
-    try {
-      const savedLayout = JSON.parse(savedDataStr);
-      if (savedLayout && savedLayout.swapMap && Object.keys(savedLayout.swapMap).length > 0) {
-        const swap = savedLayout.swapMap;
-        
-        // ALL_KEYS_LAYOUT の各キーを前回の swapMap に従って適用
-        ALL_KEYS_LAYOUT.forEach(keyObj => {
-          if (keyObj.name !== 'Space' && swap[keyObj.name]) {
-            keyObj.name = swap[keyObj.name]; 
-          }
-        });
-        
-        console.log('保存された配列を自動適用しました:', swap);
-      }
-    } catch (e) {
-      console.error('保存データの読み込みに失敗しました', e);
-    }
-  }
-
-  // 設定情報の取得と初期表示
-  const savedData = localStorage.getItem('appSettings');
-  
-  if (savedData) {
-    const settings = loadJSON(STORAGE.settings, {});
-    
-    // 使用する手の表示変換
-    let handsText = '不明';
-    if (settings.usehands === 'right') handsText = '右手のみ';
-    if (settings.usehands === 'left') handsText = '左手のみ';
-    if (settings.usehands === 'r&l') handsText = '両手';
-    
-    displayHands.textContent = handsText;
-    
-    // 座標の表示と最遠キーの計算
-    if (settings.homeCoords && settings.homeCoords.length > 0) {
-      displayCoords.textContent = settings.homeCoords.join(' , ');
-
-      maxDistanceResults = calculateMaxDistances(settings.homeCoords, settings.fingerMapping || {});
-      
-      console.log('=== 各ホームポジションからの最遠キー計算結果 ===');
-      console.table(maxDistanceResults);
-
-      const dataToSave = {
-        calculatedAt: new Date().toISOString(),
-        distanceResults: maxDistanceResults
-      };
-      
-      localStorage.setItem('maxDistanceResults', JSON.stringify(dataToSave));
-
-    } else {
-      displayCoords.textContent = '未設定';
-    }
-  } else {
+  const settings = getSettings();
+  if (!settings) {
     alert('設定が見つかりません。初期設定画面に戻ります。');
     window.location.href = 'index.html';
+    return;
   }
 
-  // 次へ進むボタンの遷移処理
-  const nextPageBtn = document.getElementById('nextPageBtn');
-  if (nextPageBtn) {
-    nextPageBtn.addEventListener('click', () => {
-      window.location.href = 'result.html';
-    });
-  }
+  const coords = settings.homeCoords ?? [];
+  document.getElementById('display-hands').textContent = HAND_LABELS[settings.usehands] ?? '不明';
+  document.getElementById('display-coords').textContent = coords.length ? coords.join(' , ') : '未設定';
+  if (coords.length) maxDistanceResults = calculateMaxDistances(coords, settings.fingerMapping ?? {});
 
-  // 🟢 初期配列(QWERTY)に戻すボタンのイベント設定
-  const resetQwertyBtn = document.getElementById('resetQwertyBtn');
-  if (resetQwertyBtn) {
-    resetQwertyBtn.addEventListener('click', () => {
-      if (confirm('現在の配列設定を初期QWERTY配列に戻しますか？\n（現在のカスタム配列は履歴に保存されます）')) {
-        commitLayout({}); // 現在の配列を履歴へ退避し、QWERTYを最新に(スコアも無効化)
+  nextPageBtn.addEventListener('click', () => { window.location.href = 'result.html'; });
+  document.getElementById('changeSettingsBtn').addEventListener('click', () => { window.location.href = 'index.html'; });
+  document.getElementById('copyTableBtn').addEventListener('click', copyTableToClipboard);
 
-        alert('初期配列(QWERTY)にリセットしました。');
-        location.reload(); // 画面を更新して標準配列に戻す
-      }
-    });
-  }
+  document.getElementById('resetQwertyBtn').addEventListener('click', () => {
+    if (!confirm('現在の配列設定を初期QWERTY配列に戻しますか？\n（現在のカスタム配列は履歴に保存されます）')) return;
+    commitLayout({});                                  // 履歴へ退避し、QWERTYを最新に(スコアも無効化)
+    alert('初期配列(QWERTY)にリセットしました。');
+    location.reload();
+  });
 });
 
-// ファイルが選択されたら「送信ボタン」を有効化する
+// ファイル選択 → 解析ボタンを有効化(前回の結果へは進めないようにする)
 fileInput.addEventListener('change', () => {
   sendBtn.disabled = fileInput.files.length === 0;
-  const next = document.getElementById('nextPageBtn'); // 前回の結果へ進めないようにする
-  if (next) next.style.display = 'none';
+  nextPageBtn.style.display = 'none';
 });
 
 sendBtn.addEventListener('click', () => {
   const file = fileInput.files[0];
-  
-  if (file) {
-    const allowedExtensions = ['.keylog2'];
-    const fileName = file.name.toLowerCase();
-    const isValid = allowedExtensions.some(ext => fileName.endsWith(ext));
-
-    if (!isValid) {
-      alert('許可されていないファイル形式です。.keylog2 を選択してください。');
-      fileInput.value = ''; 
-      return; 
-    }
-
+  if (!file) { alert('ファイルを選択してください。'); return; }
+  if (!file.name.toLowerCase().endsWith('.keylog2')) {
+    alert('許可されていないファイル形式です。.keylog2 を選択してください。');
+    fileInput.value = '';
     sendBtn.disabled = true;
-    
-    let progressBar = document.getElementById('loadingBar');
-    if (!progressBar) {
-      progressBar = document.createElement('progress');
-      progressBar.id = 'loadingBar';
-      progressBar.max = 100;
-      progressBar.value = 10;
-      progressBar.style.marginLeft = '10px';
-      sendBtn.parentNode.insertBefore(progressBar, sendBtn.nextSibling);
-    }
-    progressBar.style.display = 'inline-block';
-    progressBar.value = 30;
-
-    const reader = new FileReader();
-
-    reader.onload = function(e) {
-      progressBar.value = 70;
-      
-      const text = e.target.result;
-      
-      let totalKeyCount = 0;
-      let normalKeys = {};
-      let specialKeys = {};
-      let shortcutKeys = {};
-
-      const totalMatch = text.match(/総キー押下イベント数:\s*(\d+)/);
-      if (totalMatch) {
-        totalKeyCount = parseInt(totalMatch[1], 10);
-      }
-
-      const arrayMatches = text.match(/\[\{([\s\S]*?)\}\]/g);
-
-      if (arrayMatches && arrayMatches.length >= 3) {
-        const parseBlock = (blockStr) => {
-          const obj = {};
-          const regex = /([^,\s{}[\]]+):\s*(\d+)/g;
-          let m;
-          while ((m = regex.exec(blockStr)) !== null) {
-            obj[m[1]] = parseInt(m[2], 10);
-          }
-          return obj;
-        };
-
-        normalKeys = parseBlock(arrayMatches[0]);
-        specialKeys = parseBlock(arrayMatches[1]);
-        shortcutKeys = parseBlock(arrayMatches[2]);
-      }
-
-      // 解析に失敗したときは「完了」にせず、古いスコアも残さない
-      if (!totalMatch || Object.keys(normalKeys).length === 0) {
-        progressBar.style.display = 'none';
-        sendBtn.disabled = false;
-        lastCalculatedScores = null;
-        localStorage.removeItem(STORAGE.scores);
-        alert('ログの形式を読み取れませんでした。.keylog2 ファイルを確認してください。');
-        return;
-      }
-
-      progressBar.value = 100;
-
-      console.log('=== Keylog2 解析結果 ===');
-      console.log('合計のキーを押した数:', totalKeyCount);
-      console.log('通常キー:', normalKeys);
-      console.log('特殊キー:', specialKeys);
-      console.log('ショートカット:', shortcutKeys);
-
-      setTimeout(() => {
-        progressBar.style.display = 'none';
-        sendBtn.disabled = false;
-        
-        if (lastCalculatedScores) {
-          localStorage.setItem('calculatedScores', JSON.stringify(lastCalculatedScores));
-        }
-
-        let successMsg = document.getElementById('successMsg');
-        if (!successMsg) {
-          successMsg = document.createElement('span');
-          successMsg.id = 'successMsg';
-          successMsg.style.color = '#28a745';
-          successMsg.style.fontWeight = 'bold';
-          successMsg.style.marginLeft = '10px';
-          successMsg.style.fontSize = '0.9em';
-          sendBtn.parentNode.insertBefore(successMsg, document.getElementById('nextPageBtn'));
-        }
-        successMsg.textContent = '解析完了！';
-        successMsg.style.display = 'inline';
-
-        const nextPageBtn = document.getElementById('nextPageBtn');
-        if (nextPageBtn) {
-          nextPageBtn.style.display = 'inline-block';
-        }
-
-        setTimeout(() => {
-          successMsg.style.display = 'none';
-        }, 3000);
-
-      }, 500);
-
-      if (maxDistanceResults && ALL_KEYS_LAYOUT) {
-        const replacementScores = calculateKeyScores(totalKeyCount, normalKeys, ALL_KEYS_LAYOUT, maxDistanceResults);
-        lastCalculatedScores = replacementScores; 
-        
-        console.log('=== 🔄 キー入れ替え推奨度スコア S(k) ===');
-        console.table(replacementScores);
-      } else {
-        console.warn('最大距離データが不足しているためスコア計算をスキップしました。');
-      }
-    };
-
-    reader.onerror = () => {
-      progressBar.style.display = 'none';
-      sendBtn.disabled = false;
-      alert('ファイルを読み込めませんでした。');
-    };
-    reader.readAsText(file);
-    
-  } else {
-    alert('ファイルを選択してください。');
+    return;
   }
-});
+  if (!maxDistanceResults) { alert('ホームポジションが設定されていません。設定を確認してください。'); return; }
 
-// 設定変更ボタン
-changeSettingsBtn.addEventListener('click', () => {
-  window.location.href = 'index.html';
-});
-
-// ホームポジション計算
-function calculateMaxDistances(homeCoords, fingerMapping) {
-  const fingerNames = {
-    'left-pinky': '左小指', 'left-ring': '左薬指', 'left-middle': '左中指', 'left-index': '左人差', 'left-thumb': '左親指',
-    'right-thumb': '右親指', 'right-index': '右人差', 'right-middle': '右中指', 'right-ring': '右薬指', 'right-pinky': '右小指'
+  const fail = (message) => {
+    setStatus('');
+    sendBtn.disabled = false;
+    lastCalculatedScores = null;
+    localStorage.removeItem(STORAGE.scores);
+    alert(message);
   };
 
-  const allKeys = ALL_KEYS_LAYOUT;
+  sendBtn.disabled = true;
+  setStatus('解析中…');
 
-  const homes = homeCoords.map(coordStr => {
-    const [x, y] = JSON.parse(coordStr);
-    const fingerId = fingerMapping[coordStr] || 'unknown';
-    const targetKey = allKeys.find(k => k.coordStr === coordStr);
-    const keyName = targetKey ? targetKey.name : coordStr;
+  const reader = new FileReader();
+  reader.onerror = () => fail('ファイルを読み込めませんでした。');
+  reader.onload = (e) => {
+    const parsed = parseKeylog(String(e.target.result));
+    if (!parsed) { fail('ログの形式を読み取れませんでした。.keylog2 ファイルを確認してください。'); return; }
 
-    return {
-      coordStr,
-      x,
-      y,
-      fingerId,
-      fingerName: fingerNames[fingerId] || fingerId,
-      homeKeyName: keyName,
-      maxDistance: 0,
-      farthestKey: keyName,
-      farthestCoord: coordStr
-    };
-  });
+    lastCalculatedScores = calculateKeyScores(parsed.total, parsed.normalKeys, ALL_KEYS_LAYOUT, maxDistanceResults);
+    saveJSON(STORAGE.scores, lastCalculatedScores);
+    sendBtn.disabled = false;
+    setStatus('解析完了！', 3000);
+    nextPageBtn.style.display = 'inline-block';
+  };
+  reader.readAsText(file);
+});
 
-  allKeys.forEach(keyObj => {
-    let minDistance = Infinity;
-    let closestHome = null;
-
-    homes.forEach(home => {
-      const dist = Math.sqrt(Math.pow(keyObj.x - home.x, 2) + Math.pow(keyObj.y - home.y, 2));
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestHome = home;
-      }
-    });
-
-    if (closestHome && minDistance > closestHome.maxDistance) {
-      closestHome.maxDistance = minDistance; // 丸めない(距離/最大距離が1を超えるのを防ぐ)
-      closestHome.farthestKey = keyObj.name;
-      closestHome.farthestCoord = keyObj.coordStr;
-    }
-  });
-
-  return homes.map(h => ({
-    指: h.fingerName,
-    ホームキー: h.homeKeyName,
-    ホーム座標: h.coordStr,
-    担当する最遠キー: h.farthestKey,
-    最遠キー座標: h.farthestCoord,
-    距離: h.maxDistance
-  }));
+// 解析状況の表示(解析ボタンの右隣)
+function setStatus(text, hideAfterMs) {
+  let el = document.getElementById('analysisStatus');
+  if (!el) {
+    el = document.createElement('span');
+    el.id = 'analysisStatus';
+    el.className = 'analysis-status';
+    sendBtn.after(el);
+  }
+  el.textContent = text;
+  el.style.display = text ? 'inline' : 'none';
+  if (hideAfterMs) setTimeout(() => { el.style.display = 'none'; }, hideAfterMs);
 }
 
-// 指ごとの負担スコア P(k)
-const fingerPenalty = {
-  'right-index': 0.000, 'right-middle': 0.012, 'left-middle': 0.035, 'left-index': 0.058,
-  'right-thumb': 0.150, 'left-thumb': 0.174, 'left-ring': 0.190, 'right-ring': 0.192,
-  'left-pinky': 0.297, 'right-pinky': 0.301, 'unknown': 0.150
-};
+// keylog2 のテキストから総押下数と通常キーの回数を取り出す(失敗時は null)
+function parseKeylog(text) {
+  const total = text.match(/総キー押下イベント数:\s*(\d+)/);
+  const blocks = text.match(/\[\{([\s\S]*?)\}\]/g);
+  if (!total || !blocks || blocks.length < 3) return null;
+  const normalKeys = {};
+  for (const m of blocks[0].matchAll(/([^,\s{}[\]]+):\s*(\d+)/g)) normalKeys[m[1]] = parseInt(m[2], 10);
+  return Object.keys(normalKeys).length ? { total: parseInt(total[1], 10), normalKeys } : null;
+}
 
-// スコア計算
-function calculateKeyScores(totalKeyCount, normalKeys, allKeysConfig, maxDistanceResults) {
-  const keyNameMap = {
-    '左角括弧': '[', '右角括弧': ']', 'コロン': ':', 'コンマ': ','
-  };
+// key に最も近いホームと、その距離
+function nearestHome(homes, key) {
+  let best = null, bestDist = Infinity;
+  for (const home of homes) {
+    const d = Math.hypot(key.x - home.x, key.y - home.y);
+    if (d < bestDist) { bestDist = d; best = home; }
+  }
+  return { home: best, distance: bestDist };
+}
 
-  const scores = [];
+// ホームごとの「担当キーのうち最も遠いキーまでの距離」(丸めない)
+function calculateMaxDistances(homeCoords, fingerMapping) {
+  const homes = homeCoords.map(coordStr => {
+    const key = ALL_KEYS_LAYOUT.find(k => k.coordStr === coordStr);
+    const [x, y] = key ? [key.x, key.y] : JSON.parse(coordStr);
+    return { coordStr, x, y, fingerId: fingerMapping[coordStr] || 'unknown', maxDistance: 0, farthestKey: key?.name ?? coordStr };
+  });
+  ALL_KEYS_LAYOUT.forEach(key => {
+    const { home, distance } = nearestHome(homes, key);
+    if (home && distance > home.maxDistance) { home.maxDistance = distance; home.farthestKey = key.name; }
+  });
+  return homes;
+}
 
-  allKeysConfig.forEach(keyObj => {
-    const searchName = keyObj.name.toLowerCase().trim();
-    
-    let pressCount = 0;
-    for (const [logKey, count] of Object.entries(normalKeys)) {
-      const rawKey = logKey.trim();
-      const mappedKey = keyNameMap[rawKey] ? keyNameMap[rawKey].toLowerCase() : rawKey.toLowerCase();
-      if (mappedKey === searchName) {
-        pressCount = count;
-        break;
-      }
-    }
+// 各キーの負担スコア = 指の負担 P(k) + 距離/最大距離
+function calculateKeyScores(totalKeyCount, normalKeys, keys, homes) {
+  const counts = new Map();                            // 同名キーは最初の1件を採用(従来どおり)
+  for (const [logKey, count] of Object.entries(normalKeys)) {
+    const raw = logKey.trim();
+    const name = (LOG_KEY_ALIASES[raw] ?? raw).toLowerCase();
+    if (!counts.has(name)) counts.set(name, count);
+  }
 
-    const f_k = totalKeyCount > 0 ? (pressCount / totalKeyCount) : 0;
-
-    let minDistance = Infinity;
-    let closestHome = null;
-    let targetHomeResult = null;
-
-    maxDistanceResults.forEach(home => {
-      const [hx, hy] = JSON.parse(home.ホーム座標);
-      const dist = Math.sqrt(Math.pow(keyObj.x - hx, 2) + Math.pow(keyObj.y - hy, 2));
-      
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestHome = { hx, hy, coordStr: home.ホーム座標, fingerName: home.指 };
-        targetHomeResult = home;
-      }
-    });
-
-    if (!closestHome || !targetHomeResult) return;
-
-    const fingerIdMap = {
-      '右人差': 'right-index', '右中指': 'right-middle', '左中指': 'left-middle', '左人差': 'left-index',
-      '右親指': 'right-thumb', '左親指': 'left-thumb', '左薬指': 'left-ring', '右薬指': 'right-ring',
-      '左小指': 'left-pinky', '右小指': 'right-pinky'
-    };
-    const fingerId = fingerIdMap[closestHome.fingerName] || 'unknown';
-    const p_k = fingerPenalty[fingerId];
-
-    const maxDist = targetHomeResult.距離;
-    const distanceRatio = maxDist > 0 ? (minDistance / maxDist) : 0;
-
-    const costScore = p_k + distanceRatio;
-    const totalScore = costScore * f_k;
-
-    scores.push({
-      キー: keyObj.name,
-      '負担スコア(物理)': costScore.toFixed(4),
-      '使用頻度F(k)': (f_k * 100).toFixed(2) + '%',
-      '総合影響度': totalScore.toFixed(6),
-      '指負担P(k)': p_k.toFixed(3),
+  const scores = keys.map(key => {
+    const pressCount = counts.get(key.name.toLowerCase().trim()) ?? 0;
+    const freq = totalKeyCount > 0 ? pressCount / totalKeyCount : 0;
+    const { home, distance } = nearestHome(homes, key);
+    const penalty = FINGER_PENALTY[home.fingerId] ?? FINGER_PENALTY.unknown;
+    const distanceRatio = home.maxDistance > 0 ? distance / home.maxDistance : 0;
+    const cost = penalty + distanceRatio;
+    return {
+      キー: key.name,
+      '負担スコア(物理)': cost.toFixed(4),
+      '使用頻度F(k)': (freq * 100).toFixed(2) + '%',
+      '総合影響度': (cost * freq).toFixed(6),
+      '指負担P(k)': penalty.toFixed(3),
       '距離/最大距離': distanceRatio.toFixed(3),
       押下回数: pressCount,
-      担当指: closestHome.fingerName
-    });
+      担当指: fingerLabel(home.fingerId)
+    };
   });
-
-  scores.sort((a, b) => parseFloat(b['負担スコア(物理)']) - parseFloat(a['負担スコア(物理)']));
-  return scores;
+  return scores.sort((a, b) => parseFloat(b['負担スコア(物理)']) - parseFloat(a['負担スコア(物理)']));
 }
 
-// 隠しコマンド処理
-document.addEventListener('keydown', (e) => {
-  if (/^[a-zA-Z]$/.test(e.key)) {
-    secretCommand += e.key.toLowerCase();
-    if (secretCommand.length > 10) {
-      secretCommand = secretCommand.slice(-10);
-    }
-    if (secretCommand.endsWith('score')) {
-      showScoreCard();
-    }
-  }
-});
+// 隠しコマンド "score" で詳細スコア表を表示
+onSecretCommand('score', showScoreCard);
+
+function tableRow(tag, cells) {
+  const tr = document.createElement('tr');
+  cells.forEach(text => { const el = document.createElement(tag); el.textContent = text; tr.appendChild(el); });
+  return tr;
+}
 
 function showScoreCard() {
   if (!lastCalculatedScores) {
-    alert('まだスコアが計算されていません。ファイルを送信してからコマンドを打ってください。');
+    alert('まだスコアが計算されていません。ファイルを解析してからコマンドを打ってください。');
     return;
   }
-  
-  const resultArea = document.getElementById('score-result-area');
-  const tbody = document.getElementById('score-tbody');
-  
-  if (!resultArea || !tbody) return;
-
-  tbody.innerHTML = '';
-  const headers = ['キー', '負担スコア(物理)', '使用頻度F(k)', '総合影響度', '指負担P(k)', '距離/最大距離', '押下回数', '担当指'];
-  
-  lastCalculatedScores.forEach(row => {
-    const tr = document.createElement('tr');
-    headers.forEach(h => {
-      const td = document.createElement('td');
-      td.textContent = row[h];
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-  
-  resultArea.style.display = 'block';
-  
-  const copyBtn = document.getElementById('copyTableBtn');
-  if (copyBtn) {
-    copyBtn.removeEventListener('click', copyTableToClipboard); 
-    copyBtn.addEventListener('click', copyTableToClipboard);
-  }
-
-  setTimeout(() => {
-     resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 50);
+  document.getElementById('score-thead').replaceChildren(tableRow('th', SCORE_COLUMNS));
+  document.getElementById('score-tbody').replaceChildren(
+    ...lastCalculatedScores.map(row => tableRow('td', SCORE_COLUMNS.map(c => row[c])))
+  );
+  const area = document.getElementById('score-result-area');
+  area.style.display = 'block';
+  area.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function copyTableToClipboard() {
-  if (!lastCalculatedScores || lastCalculatedScores.length === 0) return;
-
-  const headers = ['キー', '負担スコア(物理)', '使用頻度F(k)', '総合影響度', '指負担P(k)', '距離/最大距離', '押下回数', '担当指'];
-  let tsvContent = headers.join('\t') + '\n';
-
-  lastCalculatedScores.forEach(row => {
-    const rowData = headers.map(h => {
-      let cell = row[h] !== undefined ? String(row[h]) : '';
-      return cell.replace(/\t|\n|\r/g, ' ');
-    });
-    tsvContent += rowData.join('\t') + '\n';
-  });
-
+  if (!lastCalculatedScores?.length) return;
+  const clean = (v) => String(v ?? '').replace(/[\t\n\r]/g, ' ');
+  const tsv = [SCORE_COLUMNS, ...lastCalculatedScores.map(r => SCORE_COLUMNS.map(c => r[c]))]
+    .map(cells => cells.map(clean).join('\t')).join('\n') + '\n';
   try {
-    await navigator.clipboard.writeText(tsvContent);
+    await navigator.clipboard.writeText(tsv);
   } catch (err) {
     console.error('コピーに失敗しました', err);
     alert('クリップボードへのコピーに失敗しました。');

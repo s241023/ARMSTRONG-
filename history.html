@@ -11,7 +11,7 @@
   <h2>🕒 過去のキーボード配列履歴</h2>
   <p>過去に保存されたカスタマイズ配列の一覧です。（標準のQWERTY配列は除外されています）</p>
 
-  <!-- 🟢 名前の一覧部分だけを包むカード -->
+  <!-- 名前の一覧部分だけを包むカード -->
   <div class="history-card">
     <div class="history-list" id="historyList">
       <!-- JavaScriptでここに履歴アイテムが挿入されます -->
@@ -19,16 +19,16 @@
   </div>
 
   <!-- プレビューエリア（変更なし） -->
-  <div id="preview-area">
-    <div class="preview-container">
+  <div id="preview-area" class="preview-area">
+    <div class="history-preview-container">
       <div class="preview-box">
         <h3 id="preview-title" style="margin-top: 0; text-align: center; color: #4CAF50;"></h3>
-        <div id="keyboard-preview"></div>
+        <div id="keyboard-preview" class="history-keyboard"></div>
       </div>
       
       <div class="preview-box">
         <h3 style="margin-top: 0; text-align: center; color: #555;">現在の配列</h3>
-        <div id="current-keyboard-preview"></div>
+        <div id="current-keyboard-preview" class="history-keyboard"></div>
       </div>
     </div>
     

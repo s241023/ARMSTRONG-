@@ -3,7 +3,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
   let currentKeyboard = JSON.parse(JSON.stringify(DEFAULT_KEYBOARD));
-  let settings = {};
 
   // 1. 最新の保存データを読み込み、現在の配列に適用する
   const savedLayout = loadJSON(STORAGE.latest, null);
@@ -16,71 +15,22 @@ window.addEventListener('DOMContentLoaded', () => {
   const msgEl = document.getElementById('message');
   const container = document.getElementById('keyboard-editor');
 
-  // 3. キーボードの描画
+  // 3. キーボードの描画(見た目は style.css の .edit-key 系クラス)
   function render() {
     container.innerHTML = '';
     currentKeyboard.forEach((row, r) => {
       const rowDiv = document.createElement('div');
-      rowDiv.style.display = 'flex';
-      rowDiv.style.gap = '8px';
-      rowDiv.style.marginBottom = '8px';
-
-      if (r === 1) rowDiv.style.paddingLeft = '24px';
-      if (r === 2) rowDiv.style.paddingLeft = '36px';
-      if (r === 3) rowDiv.style.paddingLeft = '60px';
-      if (r === 4) {
-        rowDiv.style.paddingLeft = '0';
-        rowDiv.style.justifyContent = 'center';
-      }
-
+      rowDiv.className = 'edit-keyboard-row';
       row.forEach((keyObj, c) => {
         const keyDiv = document.createElement('div');
-        keyDiv.className = 'keyboard-key edit-key';
-        
-        keyDiv.style.width = '42px';
-        keyDiv.style.height = '46px';
-        keyDiv.style.border = '1px solid #ccc';
-        keyDiv.style.borderRadius = '6px';
-        keyDiv.style.display = 'flex';
-        keyDiv.style.flexDirection = 'column';
-        keyDiv.style.justifyContent = 'center';
-        keyDiv.style.alignItems = 'center';
-        keyDiv.style.backgroundColor = '#fff';
-        keyDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-        
-        // 🟢 数字キーおよび Space キーの入れ替え不可判定
+        keyDiv.className = 'edit-key';
+        keyDiv.textContent = keyObj.isSpace ? 'Space' : keyObj.name;
+        if (keyObj.isSpace) keyDiv.classList.add('space-key');
         if (isExcludedKey(keyObj)) {
-          keyDiv.classList.add('disabled-key');
-          keyDiv.style.backgroundColor = '#e9ecef';
-          keyDiv.style.color = '#6c757d';
-          keyDiv.style.borderColor = '#dee2e6';
-          keyDiv.style.cursor = 'not-allowed';
-
-          if (keyObj.isSpace) {
-            keyDiv.classList.add('space-key');
-            keyDiv.textContent = 'Space';
-            keyDiv.style.width = '240px';
-          } else {
-            keyDiv.textContent = keyObj.name;
-          }
+          keyDiv.classList.add('disabled-key');       // 数字キー・Space は入れ替え不可
         } else {
-          keyDiv.textContent = keyObj.name;
-          keyDiv.style.cursor = 'pointer';
-          
-          if (selectedKeyPos && selectedKeyPos.r === r && selectedKeyPos.c === c) {
-            keyDiv.classList.add('selected');
-            keyDiv.style.backgroundColor = '#4CAF50';
-            keyDiv.style.color = 'white';
-            keyDiv.style.borderColor = '#388E3C';
-          }
-          // 「開いた時の状態(initialKeyboard)」から変わっていたら赤く表示
-          else if (initialKeyboard[r][c].name !== keyObj.name) {
-            keyDiv.classList.add('swapped');
-            keyDiv.style.backgroundColor = '#f44336';
-            keyDiv.style.color = 'white';
-            keyDiv.style.borderColor = '#d32f2f';
-          }
-
+          if (selectedKeyPos && selectedKeyPos.r === r && selectedKeyPos.c === c) keyDiv.classList.add('selected');
+          else if (initialKeyboard[r][c].name !== keyObj.name) keyDiv.classList.add('swapped');   // 開いた時から変わったキー
           keyDiv.addEventListener('click', () => handleKeyClick(r, c));
         }
         rowDiv.appendChild(keyDiv);
@@ -98,7 +48,7 @@ window.addEventListener('DOMContentLoaded', () => {
       // ▼ 1回目のクリック：選択状態にする
       selectedKeyPos = { r, c };
       msgEl.textContent = '選択したキーと入れ替えるキーを選択してください';
-      msgEl.style.color = '#388E3C';
+      msgEl.classList.add('is-active');
     } else {
       // ▼ 2回目のクリック
       if (selectedKeyPos.r === r && selectedKeyPos.c === c) {
@@ -118,7 +68,7 @@ window.addEventListener('DOMContentLoaded', () => {
       
       // メッセージを元に戻す
       msgEl.textContent = '入れ替えるキーを選択してください';
-      msgEl.style.color = 'black';
+      msgEl.classList.remove('is-active');
     }
     render(); // 画面を更新
   }

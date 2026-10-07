@@ -13,18 +13,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   
   // 現在の配列（latestLayout）を取得
-  let currentSwapMap = {};
-  const currentLatestStr = localStorage.getItem('latestLayout');
-  if (currentLatestStr) {
-    try {
-      const parsed = JSON.parse(currentLatestStr);
-      if (parsed && parsed.swapMap) {
-        currentSwapMap = parsed.swapMap;
-      }
-    } catch(e) {
-      console.error(e);
-    }
-  }
+  const currentSwapMap = loadJSON(STORAGE.latest, null)?.swapMap ?? {};
 
   // 1. 履歴データの読み込みとフィルタリング
   const rawHistory = loadJSON(STORAGE.history, []);
@@ -73,16 +62,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     DEFAULT_KEYBOARD.forEach((row, r) => {
       const rowDiv = document.createElement('div');
-      rowDiv.className = 'keyboard-row';
-
-      // 行ごとのインデント調整
-      if (r === 1) rowDiv.style.paddingLeft = '20px';
-      if (r === 2) rowDiv.style.paddingLeft = '30px';
-      if (r === 3) rowDiv.style.paddingLeft = '50px';
+      rowDiv.className = 'history-keyboard-row';
 
       row.forEach((keyObj) => {
         const keyDiv = document.createElement('div');
-        keyDiv.className = 'key'; // CSSで指定したサイズと枠線を適用
+        keyDiv.className = 'history-key';
 
         if (keyObj.isSpace) {
           keyDiv.classList.add('space-key');

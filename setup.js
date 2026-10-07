@@ -13,12 +13,7 @@ let baseCoordStep3 = null;
 let baseCoordStep4 = null; 
 const maxKeys = 10;
 let unusedFingers = [];
-let currentMapping = {}; // 🟢 確定用のマッピングデータを保持する変数
-
-const fingerNames = {
-  'right-thumb': '右親', 'right-index': '右人', 'right-middle': '右中', 'right-ring': '右薬', 'right-pinky': '右小',
-  'left-thumb': '左親', 'left-index': '左人', 'left-middle': '左中', 'left-ring': '左薬', 'left-pinky': '左小'
-};
+let currentMapping = {}; // 確定用のマッピングデータを保持する変数
 
 // 選択状況に応じて経由するステップを構築する
 function initSteps() {
@@ -31,7 +26,7 @@ function initSteps() {
   if (usehands === 'r&l') {
     activeSteps.push(document.getElementById('step-4')); 
   }
-  activeSteps.push(document.getElementById('step-5')); // 🟢 確認画面を追加
+  activeSteps.push(document.getElementById('step-5')); // 確認画面を追加
   activeSteps.push(document.getElementById('step-6')); // 完了画面
 }
 
@@ -81,7 +76,7 @@ nextBtn.addEventListener('click', () => {
     
     if (nextStepElement.id === 'step-3') buildStep3();
     if (nextStepElement.id === 'step-4') buildStep4();
-    if (nextStepElement.id === 'step-5') buildStep5(); // 🟢 確認画面の生成処理を呼び出し
+    if (nextStepElement.id === 'step-5') buildStep5(); // 確認画面の生成処理を呼び出し
     
     updateUI();
   }
@@ -110,6 +105,30 @@ function toggleKey(coordVal, element) {
   document.getElementById('selected-keys-display').textContent = selectedCoords.length > 0 ? selectedCoords.join(' , ') : 'なし';
 }
 
+// ステップ2のキーボードは common.js のキー配置から生成する(HTMLに座標を手書きしない)
+function makeHomeKey(k) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = k.isSpace ? 'key space-key' : 'key';
+  b.dataset.key = k.isSpace ? 'SPACE' : k.name;
+  b.dataset.coord = k.coordStr;
+  b.textContent = k.name;
+  return b;
+}
+(function renderHomeKeyboard() {
+  const board = document.querySelector('#step-2 .keyboard');
+  [0, 1, 2].forEach(y => {
+    const row = document.createElement('div');
+    row.className = 'keyboard-row';
+    KEY_LAYOUT.filter(k => k.y === y && k.col <= 9).forEach(k => row.appendChild(makeHomeKey(k)));
+    board.appendChild(row);
+  });
+  const spaceRow = document.createElement('div');
+  spaceRow.className = 'keyboard-row space-row';
+  spaceRow.appendChild(makeHomeKey(KEY_LAYOUT.find(k => k.isSpace)));
+  board.appendChild(spaceRow);
+})();
+
 document.querySelectorAll('#step-2 .key').forEach(keyEl => {
   keyEl.addEventListener('click', () => toggleKey(keyEl.getAttribute('data-coord'), keyEl));
 });
@@ -125,12 +144,7 @@ function buildStep3() {
   baseCoordStep3 = null;
   document.getElementById('base-keys-display').textContent = 'なし';
 
-  let availableFingers = [];
-  if (usehands === 'right' || usehands === 'r&l') {
-    availableFingers.push({ id: 'right-thumb', label: '右親指' }, { id: 'right-index', label: '右人差' }, { id: 'right-middle', label: '右中指' }, { id: 'right-ring', label: '右薬指' }, { id: 'right-pinky', label: '右小指' });
-  } else if (usehands === 'left') {
-    availableFingers.push({ id: 'left-pinky', label: '左小指' }, { id: 'left-ring', label: '左薬指' }, { id: 'left-middle', label: '左中指' }, { id: 'left-index', label: '左人差' }, { id: 'left-thumb', label: '左親指' });
-  }
+  const availableFingers = fingersOf(usehands === 'left' ? 'left' : 'right');
 
   availableFingers.forEach(f => {
     const btn = document.createElement('button');
@@ -169,7 +183,7 @@ function buildStep3() {
 function updateBaseFingerLabelStep3(usehands) {
   const targetSide = (usehands === 'left') ? 'left' : 'right';
   const labelText = getBaseFingerName(targetSide);
-  document.getElementById('base-instruction-text').innerHTML = `<strong><span id="base-finger-label">${labelText}</span></strong> を置くキーを、以下のホームポジションの中から <strong style="color:#d9534f; font-size:1.2em;">1つ</strong> クリックしてください:`;
+  document.getElementById('base-instruction-text').innerHTML = `<strong>${labelText}</strong> を置くキーを、以下のホームポジションの中から <strong class="emphasis">1つ</strong> クリックしてください:`;
 }
 
 function toggleBaseKeyStep3(coordVal, element) {
@@ -190,10 +204,7 @@ function buildStep4() {
   baseCoordStep4 = null;
   document.getElementById('base-keys-display-left').textContent = 'なし';
 
-  let availableFingers = [
-    { id: 'left-pinky', label: '左小指' }, { id: 'left-ring', label: '左薬指' },
-    { id: 'left-middle', label: '左中指' }, { id: 'left-index', label: '左人差' }, { id: 'left-thumb', label: '左親指' }
-  ];
+  const availableFingers = fingersOf('left');
 
   availableFingers.forEach(f => {
     const btn = document.createElement('button');
@@ -223,7 +234,7 @@ function buildStep4() {
       keyEl.classList.add('disabled-key'); keyEl.disabled = true;
     } else if (coord === baseCoordStep3) {
       keyEl.classList.add('disabled-key'); keyEl.disabled = true;
-      keyEl.style.backgroundColor = '#d1e7dd'; 
+      keyEl.classList.add('done-key');
       keyEl.textContent = '済';
     } else {
       keyEl.classList.add('available-base-key');
@@ -236,7 +247,7 @@ function buildStep4() {
 
 function updateBaseFingerLabelStep4() {
   const labelText = getBaseFingerName('left');
-  document.getElementById('base-instruction-text-left').innerHTML = `<strong><span id="base-finger-label-left">${labelText}</span></strong> を置くキーを、以下のホームポジションの中から <strong style="color:#d9534f; font-size:1.2em;">1つ</strong> クリックしてください:`;
+  document.getElementById('base-instruction-text-left').innerHTML = `<strong>${labelText}</strong> を置くキーを、以下のホームポジションの中から <strong class="emphasis">1つ</strong> クリックしてください:`;
 }
 
 function toggleBaseKeyStep4(coordVal, element) {
@@ -250,7 +261,7 @@ function toggleBaseKeyStep4(coordVal, element) {
   document.getElementById('base-keys-display-left').textContent = baseCoordStep4 || 'なし';
 }
 
-// 🟢 --- ステップ5: 割り当て確認・修正画面の生成 ---
+// --- ステップ5: 割り当て確認・修正画面の生成 ---
 function buildStep5() {
   const container = document.getElementById('mapping-edit-container');
   container.innerHTML = '';
@@ -259,19 +270,10 @@ function buildStep5() {
   currentMapping = calculateFingerMapping();
   const sortedCoords = [...selectedCoords].sort((a, b) => JSON.parse(a)[0] - JSON.parse(b)[0]);
   
-  let availableFingers = [];
-  if (usehands === 'left' || usehands === 'r&l') {
-    availableFingers.push(
-      { id: 'left-pinky', label: '左小指' }, { id: 'left-ring', label: '左薬指' },
-      { id: 'left-middle', label: '左中指' }, { id: 'left-index', label: '左人差' }, { id: 'left-thumb', label: '左親指' }
-    );
-  }
-  if (usehands === 'right' || usehands === 'r&l') {
-    availableFingers.push(
-      { id: 'right-thumb', label: '右親指' }, { id: 'right-index', label: '右人差' },
-      { id: 'right-middle', label: '右中指' }, { id: 'right-ring', label: '右薬指' }, { id: 'right-pinky', label: '右小指' }
-    );
-  }
+  const availableFingers = [
+    ...(usehands === 'left' || usehands === 'r&l' ? fingersOf('left') : []),
+    ...(usehands === 'right' || usehands === 'r&l' ? fingersOf('right') : [])
+  ];
   
   sortedCoords.forEach(coord => {
     const keyEl = document.querySelector(`#step-2 .key[data-coord="${coord}"]`);
@@ -314,7 +316,7 @@ function buildStep5() {
   updateDuplicateWarnings();
 }
 
-// 🟢 重複している指を赤く強調表示する関数
+// 重複している指を赤く強調表示する関数
 function updateDuplicateWarnings() {
   const selects = document.querySelectorAll('.mapping-select');
   const fingerCounts = {};
@@ -326,32 +328,14 @@ function updateDuplicateWarnings() {
   });
 
   // 2回以上選ばれている指のドロップダウンを赤くする
-  selects.forEach(select => {
-    if (fingerCounts[select.value] > 1) {
-      select.style.color = '#d9534f'; // 赤色
-      select.style.fontWeight = 'bold';
-    } else {
-      select.style.color = '#333'; // デフォルト色
-      select.style.fontWeight = 'normal';
-    }
-  });
+  selects.forEach(select => select.classList.toggle('duplicate-finger', fingerCounts[select.value] > 1));
 }
 // --- 共通ユーティリティ ---
-function getBaseFingerName(side) {
-  const priority = ['index', 'middle', 'ring', 'pinky', 'thumb'];
-  for (let p of priority) {
-    if (!unusedFingers.includes(`${side}-${p}`)) return p === 'index' ? '人差し指' : p === 'middle' ? '中指' : p === 'ring' ? '薬指' : p === 'pinky' ? '小指' : '親指';
-  }
-  return '人差し指';
+// 基準にする指の種類(使わない指を除き、人差し指 → 中指 → … の優先順)
+function baseFingerType(side) {
+  return ['index', 'middle', 'ring', 'pinky', 'thumb'].find(t => !unusedFingers.includes(`${side}-${t}`)) ?? 'index';
 }
-
-function getBaseFingerNameEng(side) {
-  const priority = ['index', 'middle', 'ring', 'pinky', 'thumb'];
-  for (let p of priority) {
-    if (!unusedFingers.includes(`${side}-${p}`)) return p;
-  }
-  return 'index';
-}
+const getBaseFingerName = (side) => FINGER_TYPE_LABEL[baseFingerType(side)];
 
 // 物理キーボード入力(e.code ベース:IME オンや配列の違いに左右されない)
 const CODE_TO_KEY = { Semicolon: ';', Comma: ',', Period: '.', Slash: '/', Space: 'SPACE' };
@@ -388,7 +372,7 @@ function calculateFingerMapping() {
     fingerOrder = fingerOrder.filter(f => !unusedFingers.includes(f));
     
     const targetSide = usehands === 'right' ? 'right' : 'left';
-    const baseFinger = `${targetSide}-${getBaseFingerNameEng(targetSide)}`;
+    const baseFinger = `${targetSide}-${baseFingerType(targetSide)}`;
     const baseFingerIdx = fingerOrder.indexOf(baseFinger);
     
     mapping[baseCoord] = baseFinger;
@@ -412,8 +396,8 @@ function calculateFingerMapping() {
     let rightFingers = ['right-index', 'right-middle', 'right-ring', 'right-pinky'].filter(f => !unusedFingers.includes(f));
     let thumbs = ['left-thumb', 'right-thumb'].filter(f => !unusedFingers.includes(f));
 
-    let leftBaseFinger = `left-${getBaseFingerNameEng('left')}`;
-    let rightBaseFinger = `right-${getBaseFingerNameEng('right')}`;
+    let leftBaseFinger = `left-${baseFingerType('left')}`;
+    let rightBaseFinger = `right-${baseFingerType('right')}`;
 
     mapping[sortedCoords[leftBaseIdx]] = leftBaseFinger;
     let lBaseIdxInArr = leftFingers.indexOf(leftBaseFinger);
@@ -445,9 +429,9 @@ saveBtn.addEventListener('click', () => {
   const settingsData = {
     usehands: document.getElementById('usehands').value,
     homeCoords: selectedCoords,
-    fingerMapping: currentMapping // 🟢 修正結果が反映されたデータを保存
+    fingerMapping: currentMapping // 修正結果が反映されたデータを保存
   };
-  localStorage.setItem('appSettings', JSON.stringify(settingsData));
+  saveJSON(STORAGE.settings, settingsData);
   localStorage.removeItem(STORAGE.scores); // 設定が変わると古いスコアは無効
   window.location.href = 'main.html';
 });
@@ -463,9 +447,8 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
-  const savedData = localStorage.getItem('appSettings');
-  if (savedData) {
-    const settings = loadJSON(STORAGE.settings, {});
+  const settings = getSettings();
+  if (settings) {
     if (settings.usehands) document.getElementById('usehands').value = settings.usehands;
     if (settings.homeCoords && Array.isArray(settings.homeCoords)) {
       selectedCoords = settings.homeCoords;
@@ -482,7 +465,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (settings.fingerMapping) {
       const mappingDisplay = Object.entries(settings.fingerMapping)
-        .map(([coord, fingerId]) => `${coord}:${fingerNames[fingerId] || fingerId}`)
+        .map(([coord, fingerId]) => `${coord}:${fingerLabel(fingerId)}`)
         .join(' / ');
       document.getElementById('confirm-mapping').textContent = mappingDisplay;
     }

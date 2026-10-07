@@ -8,10 +8,10 @@
 </head>
 <body>
   <!-- ページ全体のラッパー -->
-  <div style="width: min(1200px, 100%); margin: 0 auto;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-    <h2 style="margin: 0;">⌨️ 入れ替え後キー配置プレビュー</h2>
-    <div style="display: flex; gap: 10px; margin: 0% 10px">
+  <div class="wide-page">
+  <div class="page-header">
+    <h2>⌨️ 入れ替え後キー配置プレビュー</h2>
+    <div class="button-group">
       <button id="saveConfigBtn" class="btn-success btn-small">ブラウザに保存</button>
       <button id="backBtn" class="btn-small">← メインに戻る</button>
     </div>
@@ -36,7 +36,7 @@
     </div>
   </div>
 
-  <!-- 🟢 隠しコマンド（score）で表示される詳細テーブルエリア -->
+  <!-- 隠しコマンド（score）で表示される詳細テーブルエリア -->
   <div id="suggestion-area" class="result-card" style="display: none; margin-top: 30px;">
     <h3>📊 詳細データ・提案リスト</h3>
     <div style="text-align: left; margin-top: 10px; font-size: 0.85em; color: #555;">

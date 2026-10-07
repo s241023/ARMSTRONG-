@@ -8,8 +8,9 @@
 </head>
 <body>
   <div class="card main-card">
-    <h2>ファイルのアップロード</h2>
+    <h2>ファイルの選択</h2>
     <p>処理したいkeylog2ファイルを選択してください。</p>
+    <p class="privacy-note">ファイルはこのブラウザ内だけで処理され、外部には送信されません。</p>
     
     <div class="file-upload-area">
       <!-- keylog2ファイルのみを受け付けるように設定 -->
@@ -24,16 +25,16 @@
       <button id="changeSettingsBtn" class="btn-small">設定を変更する</button>
     </div>
 
-    <div class="buttons" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-      <button id="sendBtn" class="btn-success" disabled>送信する</button>
+    <div class="buttons">
+      <button id="sendBtn" class="btn-success" disabled>解析する</button>
       <!-- 解析完了後に表示される次へ進むボタン -->
       <button id="nextPageBtn" class="btn-primary" style="display: none;">次へ進む →</button>
     </div>
   </div>
 
-  <!-- 🟢 カード外下のナビゲーションエリア（左右に配置） -->
+  <!-- カード外下のナビゲーションエリア（左右に配置） -->
 <div class="main-nav">
-    <a href="edit.html" class="btn-secondary btn-small" style="text-decoration: none; display: inline-block;">
+    <a href="edit.html" class="btn-secondary btn-small">
         配列の編集
     </a>
     <button id="resetQwertyBtn" class="btn-secondary btn-small">
@@ -51,18 +52,7 @@
     
     <div class="table-responsive">
       <table id="score-table" class="data-table">
-        <thead>
-          <tr>
-            <th>キー</th>
-            <th>負担スコア(物理)</th>
-            <th>使用頻度F(k)</th>
-            <th>総合影響度</th>
-            <th>指負担P(k)</th>
-            <th>距離/最大距離</th>
-            <th>押下回数</th>
-            <th>担当指</th>
-          </tr>
-        </thead>
+        <thead id="score-thead"></thead>
         <tbody id="score-tbody">
           <!-- JSでここにデータが挿入されます -->
         </tbody>
