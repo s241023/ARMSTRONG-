@@ -2,18 +2,19 @@
 
 /*
  * ============================================================
- * JP60 / QMK 0.18.x / VIA READ-ONLY TEST v2
+ * jp60-via-test.js
+ * JP60 / QMK 0.18.x / VIA READ-ONLY TEST v3
  * ============================================================
  *
  * 【重要】
- * このファイルにはキーボードへの書き込み処理を入れていません。
+ * このファイルは読み取り専用テストです。
  *
- * 使用するVIAコマンド:
+ * 現在実装しているVIAコマンド:
  *   0x01 GET_PROTOCOL_VERSION
  *   0x04 GET_KEYCODE
  *   0x11 GET_LAYER_COUNT
  *
- * 使用しないVIAコマンド:
+ * 現在実装していないコマンド:
  *   0x03 SET_KEYBOARD_VALUE
  *   0x05 SET_KEYCODE
  *   0x06 DYNAMIC_KEYMAP_RESET
@@ -21,13 +22,31 @@
  *   0x0B BOOTLOADER_JUMP
  *   0x13 DYNAMIC_KEYMAP_SET_BUFFER
  *
- * このテストの目的:
- *   1. WebHID接続
- *   2. VIA protocol確認
- *   3. Layer数取得
- *   4. JP60のKC_NO想定セルを読み取り
+ * 目的:
+ *   1. WebHIDでJP60へ接続
+ *   2. VIA protocolを確認
+ *   3. Layer数を取得
+ *   4. JP60のKC_NO候補matrixセルを読み取る
  *
- * EEPROM書き換えは一切行わない。
+ * EEPROMやkeymapへの書き込みは一切行わない。
+ *
+ * 前提HTML:
+ *   jp60-via-test.html
+ *
+ * 必要なDOM ID:
+ *   connectBtn
+ *   disconnectBtn
+ *   readUnusedBtn
+ *   status
+ *   productName
+ *   vendorId
+ *   productId
+ *   usageInfo
+ *   reportId
+ *   protocol
+ *   layers
+ *   readResult
+ *   logView
  */
 
 // ============================================================
@@ -37,19 +56,22 @@
 const JP60 = Object.freeze({
   name: 'JP60',
 
-  // 既知のJP60識別情報
+  // 実機で確認できたVID/PID
   expectedVendorId: 0xA103,
   expectedProductId: 0x0024,
 
-  // Remap/VIA系Raw HID
+  // Remap/VIA系Raw HID interface
   viaUsagePage: 0xFF60,
   viaUsage: 0x61,
 
+  // JP60 matrix
   matrixRows: 5,
   matrixCols: 14,
 
-  // JP60のVIA keymap / QMK LAYOUT上でKC_NOになっている想定セル
-  // ここでは「読むだけ」に使用する。
+  // 今回読む対象はBase Layerのみ
+  baseLayer: 0,
+
+  // JP60でKC_NOが期待されるmatrixセル
   knownUnusedCells: [
     [3, 1],
     [4, 4],
@@ -82,16 +104,12 @@ const QMK = Object.freeze({
 // ============================================================
 // 許可するVIA protocol
 // ============================================================
+//
+// 今回実機が0x0009を返したため、0x0009を正式に許可。
+// QMK 0.18系の上限として0x000Aも許可する。
+// それ以外は読み取りを停止する。
+// ============================================================
 
-/*
- * QMK 0.18.17以下向けRemap環境は
- * VIA protocol 0x0A以下を対象としている。
- *
- * 今回は実機で0x0009が返ってきたため、
- * 0x0009 / 0x000Aの両方を許可する。
- *
- * それ以外は読み取りを停止する。
- */
 const SUPPORTED_VIA_PROTOCOLS = new Set([
   0x0009,
   0x000A,
@@ -101,8 +119,7 @@ const SUPPORTED_VIA_PROTOCOLS = new Set([
 // DOM
 // ============================================================
 
-const $ = id =>
-  document.getElementById(id);
+const $ = id => document.getElementById(id);
 
 const els = {
   connectBtn: $('connectBtn'),
@@ -130,12 +147,9 @@ const els = {
 
 let device = null;
 let reportId = 0;
-
 let pending = null;
-
 let currentProtocol = null;
 let currentLayerCount = null;
-
 let inputReportHandler = null;
 
 // ============================================================
@@ -173,13 +187,8 @@ function bytesHex(bytes) {
     .join(' ');
 }
 
-function setStatus(
-  text,
-  type = 'normal'
-) {
-  if (!els.status) {
-    return;
-  }
+function setStatus(text, type = 'normal') {
+  if (!els.status) return;
 
   els.status.textContent = text;
 
@@ -192,22 +201,13 @@ function setStatus(
   }
 }
 
-function log(
-  level,
-  message,
-  data
-) {
-  const line =
-    `[${now()}] [JP60-VIA] ${message}`;
+function log(level, message, data) {
+  const line = `[${now()}] [JP60-VIA] ${message}`;
 
   if (els.logView) {
     els.logView.textContent +=
       line +
-      (
-        data === undefined
-          ? ''
-          : ` ${JSON.stringify(data)}`
-      ) +
+      (data === undefined ? '' : ` ${JSON.stringify(data)}`) +
       '\n';
 
     els.logView.scrollTop =
@@ -215,20 +215,11 @@ function log(
   }
 
   if (level === 'error') {
-    console.error(
-      line,
-      data
-    );
+    console.error(line, data);
   } else if (level === 'warn') {
-    console.warn(
-      line,
-      data
-    );
+    console.warn(line, data);
   } else {
-    console.log(
-      line,
-      data
-    );
+    console.log(line, data);
   }
 }
 
@@ -237,7 +228,6 @@ function log(
 // ============================================================
 
 function assertWebHidAvailable() {
-
   log(
     'log',
     'Checking WebHID availability...'
@@ -264,12 +254,10 @@ function assertWebHidAvailable() {
 }
 
 // ============================================================
-// HID collection
+// VIA HID collection
 // ============================================================
 
-function getViaCollection(
-  hidDevice
-) {
+function getViaCollection(hidDevice) {
   const collections =
     hidDevice.collections || [];
 
@@ -315,9 +303,7 @@ function findOutputReportId(
 // Device info
 // ============================================================
 
-function dumpDeviceInfo(
-  hidDevice
-) {
+function dumpDeviceInfo(hidDevice) {
   const collection =
     getViaCollection(hidDevice);
 
@@ -345,9 +331,7 @@ function dumpDeviceInfo(
         : null,
 
     collections:
-      (
-        hidDevice.collections || []
-      ).map(c => ({
+      (hidDevice.collections || []).map(c => ({
         usagePage:
           hex16(c.usagePage),
 
@@ -355,25 +339,19 @@ function dumpDeviceInfo(
           hex8(c.usage),
 
         inputReports:
-          (
-            c.inputReports || []
-          ).map(
+          (c.inputReports || []).map(
             report =>
               report.reportId
           ),
 
         outputReports:
-          (
-            c.outputReports || []
-          ).map(
+          (c.outputReports || []).map(
             report =>
               report.reportId
           ),
 
         featureReports:
-          (
-            c.featureReports || []
-          ).map(
+          (c.featureReports || []).map(
             report =>
               report.reportId
           ),
@@ -395,9 +373,7 @@ function dumpDeviceInfo(
 // Input report
 // ============================================================
 
-function handleInputReport(
-  event
-) {
+function handleInputReport(event) {
   const data =
     new Uint8Array(
       event.data.buffer
@@ -427,9 +403,7 @@ function handleInputReport(
   const current =
     pending;
 
-  if (
-    !current.matcher(data)
-  ) {
+  if (!current.matcher(data)) {
     log(
       'warn',
       `${current.label} に一致しない入力レポートを無視します。`
@@ -444,9 +418,7 @@ function handleInputReport(
     current.timer
   );
 
-  current.resolve(
-    data
-  );
+  current.resolve(data);
 }
 
 // ============================================================
@@ -454,7 +426,6 @@ function handleInputReport(
 // ============================================================
 
 async function ensureOpen() {
-
   if (!device) {
     throw new Error(
       'HID deviceがありません。'
@@ -490,7 +461,6 @@ function sendCommand(
     async (resolve, reject) => {
 
       try {
-
         await ensureOpen();
 
         if (pending) {
@@ -503,10 +473,7 @@ function sendCommand(
           return;
         }
 
-        /*
-         * Remapと同じ考え方で
-         * 32byte reportを使用。
-         */
+        // Remapと同様、32byte reportを使用。
         const report =
           new Uint8Array(32);
 
@@ -532,7 +499,6 @@ function sendCommand(
                 pending &&
                 pending.label === label
               ) {
-
                 const current =
                   pending;
 
@@ -590,20 +556,14 @@ function sendCommand(
           log(
             'error',
             `sendReport FAILED: ${label}`,
-            error?.message ||
-              error
+            error?.message || error
           );
 
-          reject(
-            error
-          );
+          reject(error);
         }
 
       } catch (error) {
-
-        reject(
-          error
-        );
+        reject(error);
       }
     }
   );
@@ -614,6 +574,22 @@ function sendCommand(
 // ============================================================
 
 async function connectJP60() {
+
+  // 二重接続防止
+  if (device?.opened) {
+
+    log(
+      'warn',
+      'すでにJP60へ接続されています。'
+    );
+
+    setStatus(
+      'すでに接続済み',
+      'ok'
+    );
+
+    return;
+  }
 
   log(
     'log',
@@ -640,14 +616,9 @@ async function connectJP60() {
     `navigator.hid.getDevices() = ${authorized.length}件`
   );
 
-  /*
-   * 既に許可済みのデバイスを表示。
-   * 自動選択はせず、今回は明示選択にする。
-   */
   const viaDevices =
     authorized.filter(
-      device =>
-        !!getViaCollection(device)
+      d => !!getViaCollection(d)
     );
 
   if (
@@ -668,15 +639,35 @@ async function connectJP60() {
           hex16(d.productId),
       }))
     );
+
+    console.table(
+      viaDevices.map(d => ({
+        productName:
+          d.productName,
+
+        vendorId:
+          hex16(d.vendorId),
+
+        productId:
+          hex16(d.productId),
+      }))
+    );
   }
 
   /*
-   * requestDeviceはユーザー操作から呼ぶ。
+   * JP60のVID/PID + VIA usageを指定して、
+   * 別機種を選択肢に出さない。
    */
   const selected =
     await navigator.hid.requestDevice({
       filters: [
         {
+          vendorId:
+            JP60.expectedVendorId,
+
+          productId:
+            JP60.expectedProductId,
+
           usagePage:
             JP60.viaUsagePage,
 
@@ -728,11 +719,6 @@ async function connectJP60() {
     );
   }
 
-  /*
-   * JP60のVID/PID確認。
-   * 今回は一致しなくても「読み取りだけ」は可能にするが、
-   * Consoleでは警告を出す。
-   */
   const expectedId =
     selectedDevice.vendorId ===
       JP60.expectedVendorId &&
@@ -749,35 +735,12 @@ async function connectJP60() {
   } else {
 
     log(
-      'warn',
-      'VID/PIDが既知のJP60値と一致しません。',
-      {
-        expected:
-          {
-            vendorId:
-              hex16(
-                JP60.expectedVendorId
-              ),
+      'error',
+      'VID/PIDがJP60と一致しません。'
+    );
 
-            productId:
-              hex16(
-                JP60.expectedProductId
-              ),
-          },
-
-        actual:
-          {
-            vendorId:
-              hex16(
-                selectedDevice.vendorId
-              ),
-
-            productId:
-              hex16(
-                selectedDevice.productId
-              ),
-          },
-      }
+    throw new Error(
+      'JP60ではないデバイスが選択されました。'
     );
   }
 
@@ -790,13 +753,9 @@ async function connectJP60() {
       collection
     );
 
-  /*
-   * UI
-   */
   if (els.productName) {
     els.productName.textContent =
-      device.productName ||
-      '-';
+      device.productName || '-';
   }
 
   if (els.vendorId) {
@@ -822,7 +781,7 @@ async function connectJP60() {
   dumpDeviceInfo(device);
 
   /*
-   * inputreportイベント登録
+   * inputreport listenerは一度だけ登録。
    */
   inputReportHandler =
     handleInputReport;
@@ -852,7 +811,7 @@ async function connectJP60() {
     await checkLayerCount();
 
     /*
-     * 読み取りボタン有効化
+     * STEP 3へ進むためのボタンを有効化。
      */
     if (els.readUnusedBtn) {
       els.readUnusedBtn.disabled =
@@ -906,11 +865,18 @@ async function checkProtocol() {
       'GET_PROTOCOL_VERSION'
     );
 
+  /*
+   * response:
+   *   [0] command
+   *   [1] protocol high byte
+   *   [2] protocol low byte
+   */
   const version =
     (response[1] << 8) |
     response[2];
 
-  currentProtocol = version;
+  currentProtocol =
+    version;
 
   if (els.protocol) {
     els.protocol.textContent =
@@ -918,7 +884,9 @@ async function checkProtocol() {
   }
 
   if (
-    SUPPORTED_VIA_PROTOCOLS.has(version)
+    SUPPORTED_VIA_PROTOCOLS.has(
+      version
+    )
   ) {
 
     log(
@@ -938,6 +906,7 @@ async function checkProtocol() {
     );
   }
 }
+
 // ============================================================
 // Layer count
 // ============================================================
@@ -959,9 +928,6 @@ async function checkLayerCount() {
     '----------------------------------------'
   );
 
-  /*
-   * command 0x11
-   */
   const response =
     await sendCommand(
       new Uint8Array([
@@ -1019,7 +985,7 @@ async function getKeycode(
 ) {
 
   /*
-   * 念のため範囲確認
+   * undefined等を絶対に通さない。
    */
   if (
     !Number.isInteger(layer) ||
@@ -1086,8 +1052,6 @@ async function getKeycode(
     );
 
   /*
-   * response:
-   *
    * [4] keycode high
    * [5] keycode low
    */
@@ -1141,13 +1105,30 @@ async function readKnownUnusedCells() {
     );
   }
 
+  /*
+   * 今回はBase Layerだけを読む。
+   */
+  const layer =
+    JP60.baseLayer;
+
+  /*
+   * 安全確認。
+   */
+  if (!Number.isInteger(layer)) {
+    throw new Error(
+      `JP60.baseLayerが不正です: ${layer}`
+    );
+  }
+
+  log(
+    'log',
+    `Target layer = ${layer}`
+  );
+
   const results = [];
 
   for (
-    const [
-      row,
-      column
-    ]
+    const [row, column]
     of JP60.knownUnusedCells
   ) {
 
@@ -1158,7 +1139,7 @@ async function readKnownUnusedCells() {
 
     const keycode =
       await getKeycode(
-        JP60.baseLayer,
+        layer,
         row,
         column
       );
@@ -1168,9 +1149,7 @@ async function readKnownUnusedCells() {
       QMK.KC_NO;
 
     const item = {
-      layer:
-        JP60.baseLayer,
-
+      layer,
       row,
       column,
 
@@ -1183,9 +1162,7 @@ async function readKnownUnusedCells() {
       isKCNO,
     };
 
-    results.push(
-      item
-    );
+    results.push(item);
 
     if (isKCNO) {
 
@@ -1204,9 +1181,6 @@ async function readKnownUnusedCells() {
     }
   }
 
-  /*
-   * 表示
-   */
   if (els.readResult) {
     els.readResult.textContent =
       JSON.stringify(
@@ -1216,9 +1190,6 @@ async function readKnownUnusedCells() {
       );
   }
 
-  /*
-   * 全部KC_NOか確認
-   */
   const allKCNO =
     results.every(
       item =>
@@ -1270,7 +1241,7 @@ async function disconnectJP60() {
   );
 
   /*
-   * pending commandを止める
+   * pending commandを止める。
    */
   if (pending) {
 
@@ -1292,7 +1263,7 @@ async function disconnectJP60() {
   }
 
   /*
-   * inputreport解除
+   * inputreport listener解除。
    */
   if (
     device &&
@@ -1311,22 +1282,19 @@ async function disconnectJP60() {
       log(
         'warn',
         'inputreport listener解除失敗',
-        error?.message ||
-          error
+        error?.message || error
       );
     }
   }
 
   /*
-   * close
+   * HID close。
    */
   if (device) {
 
     try {
 
-      if (
-        device.opened
-      ) {
+      if (device.opened) {
 
         await device.close();
 
@@ -1341,8 +1309,7 @@ async function disconnectJP60() {
       log(
         'error',
         'device.close() failed',
-        error?.message ||
-          error
+        error?.message || error
       );
     }
   }
@@ -1354,15 +1321,18 @@ async function disconnectJP60() {
   inputReportHandler = null;
 
   if (els.protocol) {
-    els.protocol.textContent = '-';
+    els.protocol.textContent =
+      '-';
   }
 
   if (els.layers) {
-    els.layers.textContent = '-';
+    els.layers.textContent =
+      '-';
   }
 
   if (els.reportId) {
-    els.reportId.textContent = '-';
+    els.reportId.textContent =
+      '-';
   }
 
   if (els.readUnusedBtn) {
@@ -1381,7 +1351,7 @@ async function disconnectJP60() {
 }
 
 // ============================================================
-// UI event
+// UI events
 // ============================================================
 
 if (els.connectBtn) {
@@ -1399,8 +1369,7 @@ if (els.connectBtn) {
         log(
           'error',
           'CONNECT FAILED',
-          error?.message ||
-            error
+          error?.message || error
         );
 
         setStatus(
@@ -1444,8 +1413,7 @@ if (els.readUnusedBtn) {
         log(
           'error',
           'READ TEST FAILED',
-          error?.message ||
-            error
+          error?.message || error
         );
 
         setStatus(
@@ -1453,7 +1421,6 @@ if (els.readUnusedBtn) {
           'error'
         );
       }
-
     }
   );
 }
@@ -1482,6 +1449,30 @@ if (
         );
 
         device = null;
+        reportId = 0;
+        currentProtocol = null;
+        currentLayerCount = null;
+        inputReportHandler = null;
+
+        if (els.protocol) {
+          els.protocol.textContent =
+            '-';
+        }
+
+        if (els.layers) {
+          els.layers.textContent =
+            '-';
+        }
+
+        if (els.reportId) {
+          els.reportId.textContent =
+            '-';
+        }
+
+        if (els.readUnusedBtn) {
+          els.readUnusedBtn.disabled =
+            true;
+        }
 
         setStatus(
           'キーボードが切断されました。',
@@ -1503,12 +1494,17 @@ log(
 
 log(
   'log',
-  'JP60 VIA READ-ONLY TEST v2'
+  'JP60 VIA READ-ONLY TEST v3'
 );
 
 log(
   'log',
   'WRITE COMMANDS ARE NOT IMPLEMENTED.'
+);
+
+log(
+  'log',
+  'VIA 0x0009 / 0x000A supported.'
 );
 
 log(
