@@ -906,20 +906,11 @@ async function checkProtocol() {
       'GET_PROTOCOL_VERSION'
     );
 
-  /*
-   * VIA protocol version
-   *
-   * response:
-   *   [0] command
-   *   [1] high
-   *   [2] low
-   */
   const version =
     (response[1] << 8) |
     response[2];
 
-  currentProtocol =
-    version;
+  currentProtocol = version;
 
   if (els.protocol) {
     els.protocol.textContent =
@@ -927,9 +918,7 @@ async function checkProtocol() {
   }
 
   if (
-    SUPPORTED_VIA_PROTOCOLS.has(
-      version
-    )
+    SUPPORTED_VIA_PROTOCOLS.has(version)
   ) {
 
     log(
@@ -941,7 +930,7 @@ async function checkProtocol() {
 
     log(
       'error',
-      `UNSUPPORTED VIA PROTOCOL: ${hex16(version)}`,
+      `UNSUPPORTED VIA PROTOCOL: ${hex16(version)}`
     );
 
     throw new Error(
@@ -949,7 +938,6 @@ async function checkProtocol() {
     );
   }
 }
-
 // ============================================================
 // Layer count
 // ============================================================
