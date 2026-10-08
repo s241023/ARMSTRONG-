@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JP60 VIA 0.18 テスト</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #222; background: #f4f6f8; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 980px; margin: 0 auto; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+    h1, h2 { margin-top: 0; }
+    button { padding: 10px 14px; margin: 4px; border: 0; border-radius: 8px; cursor: pointer; font-weight: 700; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .primary { background: #1565c0; color: white; }
+    .safe { background: #2e7d32; color: white; }
+    .danger { background: #c62828; color: white; }
+    .muted { color: #666; }
+    .warning { background: #fff3cd; border-left: 5px solid #ffb300; padding: 12px; }
+    .status { font-weight: 700; }
+    pre { background: #111; color: #eee; padding: 14px; border-radius: 8px; overflow: auto; max-height: 360px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    code { background: #f0f0f0; padding: 2px 5px; border-radius: 4px; }
+    label { display: block; margin: 10px 0; }
+    input[type="text"] { padding: 8px; width: min(320px, 100%); }
+    .danger-zone { border: 2px solid #c62828; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>JP60 / QMK 0.18 / VIA 0x0A テスト</h1>
+    <p class="muted">これは既存のARMSTRONGコードとは完全に独立した検証用ページです。本番コードの保存処理には接続していません。</p>
+    <div class="warning">
+      <strong>安全方針</strong><br>
+      まず読み取りだけを行います。書き込みテストは、JP60・VIA 0x000A・Base Layer・未使用matrixセルの確認がすべて成功した場合だけ手動で有効化できます。
+      本テストはEEPROM reset、bootloader jump、dynamic keymap reset、lighting write等のコマンドを送信しません。<br><strong>Remap / VIA / QMK Toolbox / 他のキーボード設定ソフトは同時にJP60へ接続しないでください。</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1. 接続・診断</h2>
+    <button id="connectBtn" class="primary">JP60を選択して接続</button>
+    <button id="disconnectBtn">切断</button>
+    <p>状態: <span id="status" class="status">未接続</span></p>
+    <table>
+      <tbody>
+        <tr><th>productName</th><td id="productName">-</td></tr>
+        <tr><th>vendorId</th><td id="vendorId">-</td></tr>
+        <tr><th>productId</th><td id="productId">-</td></tr>
+        <tr><th>VIA usagePage / usage</th><td id="usageInfo">-</td></tr>
+        <tr><th>output report ID</th><td id="reportId">-</td></tr>
+        <tr><th>VIA protocol</th><td id="protocol">-</td></tr>
+        <tr><th>layer count</th><td id="layers">-</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>2. 読み取り専用チェック</h2>
+    <button id="readUnusedBtn" class="safe" disabled>未使用matrixセルを読む</button>
+    <p class="muted">JP60公式LAYOUTでKC_NOのセル: [3,1], [4,4], [4,5], [4,6], [4,8], [4,9]</p>
+    <pre id="readResult">-</pre>
+  </div>
+
+  <div class="card danger-zone">
+    <h2>3. 書き込みテスト（要明示許可）</h2>
+    <p>ここだけがキーボードのEEPROMを書き換えます。未使用セル <code>layer 0 / row 3 / column 1</code> のみを対象にします。</p>
+    <ol>
+      <li>現在値が <code>KC_NO (0x0000)</code> であることを確認</li>
+      <li><code>KC_A (0x0004)</code> を書く</li>
+      <li>GET_KEYCODEで <code>0x0004</code> を確認</li>
+      <li>元の <code>0x0000</code> に戻す</li>
+      <li>GET_KEYCODEで <code>0x0000</code> を再確認</li>
+    </ol>
+    <label><input type="checkbox" id="enableWrite"> 上記のテスト内容を理解し、書き込みテストを許可します。</label>
+    <label>確認文字列 <input id="confirmText" type="text" placeholder="JP60 WRITE"></label>
+    <button id="writeTestBtn" class="danger" disabled>書き込みテストを実行</button>
+    <pre id="writeResult">-</pre>
+  </div>
+
+  <div class="card">
+    <h2>コンソール</h2>
+    <p class="muted">詳細はブラウザの開発者ツール Console にも同じプレフィックス付きで出力します。</p>
+    <pre id="logView"></pre>
+  </div>
+</main>
+<script src="jp60-via-test.js"></script>
+</body>
+</html>
