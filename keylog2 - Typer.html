@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>keylog2 タイピング</title>
+<style>
+:root{--bg:#ededeb;--card:#fafaf9;--ink:#1f1f1e;--sub:#8a8a86;--line:#d6d6d2;--ng:#c8372d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:40px 16px}
+main{width:100%;max-width:900px}
+h1{font-size:17px;font-weight:600;margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:24px;transition:border-color .12s}
+.card.bad{border-color:var(--ng)}
+.fld{font-size:13px;font-weight:600;margin:0 0 6px}
+.fld span{font-weight:400;color:var(--sub);margin-left:8px;font-size:12px}
+textarea+.fld{margin-top:18px}
+textarea{width:100%;height:130px;resize:vertical;border:1px solid var(--line);border-radius:4px;padding:12px;font:inherit;font-size:15px;line-height:1.7;background:#fff;color:var(--ink)}
+textarea:focus,button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button{font:inherit;font-size:14px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:4px;padding:9px 26px;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink)}
+.row{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap}
+.note{font-size:12.5px;color:var(--sub);line-height:1.8;margin:14px 0 0}
+.hidden{display:none!important}
+.stats{display:flex;gap:28px;font-size:12.5px;color:var(--sub);margin-bottom:14px;flex-wrap:wrap}
+.stats b{display:block;color:var(--ink);font-variant-numeric:tabular-nums;font-size:20px;font-weight:600;margin-top:2px}
+.bar{height:3px;background:var(--line);margin-bottom:28px}
+.bar i{display:block;height:100%;width:0;background:var(--ink)}
+.lane{overflow:hidden;white-space:pre;font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Hiragino Sans",monospace}
+.lane .in{display:inline-block;transition:transform .09s linear}
+#src{font-size:26px;line-height:44px;height:44px;margin-bottom:10px}
+#rom{font-size:36px;line-height:56px;height:56px;border-top:1px solid var(--line);padding-top:8px}
+.done{color:#b9b9b4}
+.cur{background:var(--ink);color:#fff}
+#src .done{color:var(--ink)}
+#src .rest{color:#b9b9b4}
+#src .cur{background:none;color:var(--ink);box-shadow:inset 0 -3px var(--ink)}
+#msg{font-size:12.5px;color:var(--sub);margin-top:20px;min-height:1.5em}
+#msg.bad{color:var(--ng)}
+pre{background:#fff;border:1px solid var(--line);border-radius:4px;padding:12px;font-size:12px;line-height:1.6;overflow:auto;max-height:260px;white-space:pre-wrap;word-break:break-all}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap}
+.top h1{margin:0}
+.tabs{display:flex;gap:6px}
+.tabs button{padding:6px 16px;background:transparent;color:var(--ink)}
+.tabs button.on{background:var(--ink);color:#fff}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.slots{grid-template-columns:1fr}}
+.slot{border:1px dashed var(--sub);border-radius:4px;padding:16px;min-height:120px}
+.slot.over{border-color:var(--ink);background:#fff}
+.slot .nm{font-size:13px;font-weight:600}
+.slot .fn{font-size:12.5px;color:var(--sub);word-break:break-all;margin:8px 0;line-height:1.6}
+.slot button{padding:6px 14px;font-size:13px;margin-right:6px}
+.ctl{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:13px;margin:18px 0 12px}
+.ctl label{display:flex;gap:6px;align-items:center}
+select{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);background:#fff;border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;font-weight:400}
+th{color:var(--sub);font-size:12px}
+th:first-child,td:first-child{text-align:left}
+td.bars{width:34%;text-align:left}
+.b{height:5px;margin:2px 0}
+.b.a{background:var(--ink)}
+.b.c{background:#a8a8a3}
+.pos{color:#1d6fb8}.neg{color:var(--ng)}.zero{color:var(--sub)}
+.meta{font-size:12.5px;color:var(--sub);line-height:1.8;margin:0 0 16px}
+.tw{overflow-x:auto}
+.rb{padding:18px 0;border-top:1px solid var(--line)}
+.rb:first-child{border-top:0;padding-top:0}
+.rb h2{font-size:15px;margin:0 0 10px;font-weight:600}
+.rb .stats b{font-size:18px}
+#ctabs{margin:18px 0 0;flex-wrap:wrap}
+.sumt{margin-top:6px}
+@media (prefers-reduced-motion:reduce){.lane .in{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<div class="top">
+  <h1>keylog2 タイピング</h1>
+  <div class="tabs"><button id="tabType" class="on">タイピング</button><button id="tabCmp">比較</button></div>
+</div>
+
+<div id="vType">
+<section id="setup" class="card">
+  <div class="fld">表示用の文<span>漢字かな交じり。空欄なら下の文をそのまま表示</span></div>
+  <textarea id="disp" placeholder="例:{1}今日は{2}天気がいいですね。"></textarea>
+  <div class="fld">入力用の文(ひらがな)<span>実際に打つ文。キー判定はこちらで行います</span></div>
+  <textarea id="text" placeholder="例:{1}きょうは{2}てんきがいいですね。"></textarea>
+  <div class="row">
+    <button id="run">実行</button>
+    <button id="resume" class="ghost hidden">中断データからkeylog2を出力</button>
+  </div>
+  <p class="note">
+    改行は取り除かれ、すべて一列につながります。入力用の文はローマ字入力で打ちます(si / shi など複数の打ち方に対応)。漢字の読みは <a href="https://www.jcinfo.net/ja/tools/kana" target="_blank" rel="noopener">ふりがな表示ツール</a> などで作って貼り付けられます。<br>
+    文中に <b>{1}{2}</b> のように中括弧で囲んだ数字を書くと、そこで区間を分けます。区間ごとに別の keylog2 を出力し、時間・正打・ミス・正確率・打鍵/分もリセットされます(表示用・入力用の両方に同じ位置で書いてください)。計測は各区間の最初のキー入力から始まります。<br>
+    表示用の文は、ひらがなの文と照らし合わせて進行位置を表示します(読みが一致しない部分は、おおよその位置になります)。<br>
+    打鍵は押した物理キーごとに数えられます。<b>A(正打ログ)</b>はミスタイプを除き、<b>B(全キー記録)</b>はミスや Backspace・矢印キーなども含めて、押したキーをすべて記録します。終了(または Esc で中断)すると A と B は比較タブに自動で転送されます。ファイルは自動ではダウンロードされないので、完了画面から保存してください(「すべてダウンロード」は zip です)。
+  </p>
+</section>
+
+<section id="game" class="card hidden">
+  <div class="stats">
+    <div id="secBox" class="hidden">区間<b id="secL">-</b></div>
+    <div>時間<b id="t">0.0s</b></div>
+    <div>正打<b id="c">0</b></div>
+    <div>ミス<b id="m">0</b></div>
+    <div>正確率<b id="a">100%</b></div>
+    <div>打鍵/分<b id="k">0</b></div>
+  </div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="lane" id="src"><span class="in"></span></div>
+  <div class="lane" id="rom"><span class="in"></span></div>
+  <div id="msg">IME は半角英数にしてください。Esc で中断して出力します。</div>
+</section>
+
+<section id="result" class="card hidden">
+  <h1 id="rtitle"></h1>
+  <div id="rbody"></div>
+  <div class="row">
+    <div class="ctl hidden" id="dlOpt" style="flex-basis:100%;margin:0">
+      <span>すべてダウンロードの形式:</span>
+      <label><input type="radio" name="dlmode" value="split" checked>区画ごとに分ける</label>
+      <label><input type="radio" name="dlmode" value="merge">1つに統合する</label>
+    </div>
+    <button id="dl" class="hidden">すべてダウンロード(zip)</button>
+    <button id="dlMA" class="hidden ghost">A(正打)の統合版だけ</button>
+    <button id="dlMB" class="hidden ghost">B(全キー)の統合版だけ</button>
+    <button id="again" class="ghost">同じ文章でもう一度</button>
+    <button id="back" class="ghost">入力に戻る</button>
+  </div>
+</section>
+</div>
+
+<div id="vCmp" class="hidden">
+<section class="card">
+  <div class="slots">
+    <div class="slot" id="slotA">
+      <div class="nm">A:生成した keylog2</div>
+      <div class="fn" id="fnA">未選択(ここにファイルをドロップ)</div>
+      <button class="ghost" id="pickA">ファイルを選択</button><button class="ghost" id="lastA">直前の正打ログを使う</button>
+      <input type="file" id="fileA" accept=".keylog2,.txt" class="hidden" multiple>
+    </div>
+    <div class="slot" id="slotB">
+      <div class="nm">B:全キー記録 / 自分の keylog2</div>
+      <div class="fn" id="fnB">未選択(ここにファイルをドロップ)</div>
+      <button class="ghost" id="pickB">ファイルを選択</button><button class="ghost" id="lastB">直前の全キー記録を使う</button>
+      <input type="file" id="fileB" accept=".keylog2,.txt" class="hidden" multiple>
+    </div>
+  </div>
+  <div id="cres" class="hidden">
+    <div class="row" style="margin:0 0 4px"><button class="ghost hidden" id="toResult">結果画面でダウンロード</button></div>
+    <div class="tabs" id="ctabs"></div>
+    <p class="note hidden" id="cnote"></p>
+    <div class="ctl">
+      <label>表示 <select id="cmode"><option value="abs">実数</option><option value="pct">割合(%)</option></select></label>
+      <label>並び順 <select id="csort"><option value="kb">キーボード順</option><option value="diff">差が大きい順</option></select></label>
+      <label><input type="checkbox" id="chide" checked>両方0のキーを隠す</label>
+      <label><input type="checkbox" id="cdiff">差のあるキーのみ</label>
+    </div>
+    <div class="stats" id="csum"></div>
+    <p class="meta" id="cmeta"></p>
+    <div class="tw" id="ctable"></div>
+  </div>
+  <p class="note" id="chint">A と B を読み込むとキーごとの打鍵数を比較します。タイピングを終えると、その結果(A:正打のみ / B:ミスも含む全キー)が自動で入ります。複数ファイルを選ぶと、ファイル名順に区間ごとの比較になります。</p>
+</section>
+</div>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+
+// ---- keylog2 の項目(JIS配列の並び) ----
+const ORDER=["半角/全角","1","2","3","4","5","6","7","8","9","0","-","^","¥","Backspace","Tab","q","w","e","r","t","y","u","i","o","p","@","左角括弧","CapsLock","a","s","d","f","g","h","j","k","l",";","コロン","右角括弧","Enter","LShift","z","x","c","v","b","n","m","コンマ",".","/","\\","RShift","LCtrl","LWin","LAlt","無変換","Space","変換","かな","RAlt","RWin","Menu","RCtrl"];
+const SIDE=["down","up","right","右親指","左親指","left"];
+const CODE={Backquote:"半角/全角",Minus:"-",Equal:"^",IntlYen:"¥",BracketLeft:"@",BracketRight:"左角括弧",Semicolon:";",Quote:"コロン",Backslash:"右角括弧",Comma:"コンマ",Period:".",Slash:"/",IntlRo:"\\",Space:"Space",ShiftLeft:"LShift",ShiftRight:"RShift",Backspace:"Backspace",Tab:"Tab",CapsLock:"CapsLock",Enter:"Enter",NumpadEnter:"Enter",ControlLeft:"LCtrl",ControlRight:"RCtrl",MetaLeft:"LWin",MetaRight:"RWin",AltLeft:"LAlt",AltRight:"RAlt",NonConvert:"無変換",Convert:"変換",KanaMode:"かな",ContextMenu:"Menu"};
+const SIDEMAP={ArrowDown:"down",ArrowUp:"up",ArrowRight:"right",ArrowLeft:"left"};
+function label(code){
+  if(CODE[code])return CODE[code];
+  let m=/^Key([A-Z])$/.exec(code);if(m)return m[1].toLowerCase();
+  m=/^(?:Digit|Numpad)(\d)$/.exec(code);if(m)return m[1];
+  return null;
+}
+
+// ---- かな → ローマ字(複数候補) ----
+const B="あ=a,い=i,う=u,え=e,お=o,か=ka,き=ki,く=ku,け=ke,こ=ko,さ=sa,し=shi|si,す=su,せ=se,そ=so,た=ta,ち=chi|ti,つ=tsu|tu,て=te,と=to,な=na,に=ni,ぬ=nu,ね=ne,の=no,は=ha,ひ=hi,ふ=fu|hu,へ=he,ほ=ho,ま=ma,み=mi,む=mu,め=me,も=mo,や=ya,ゆ=yu,よ=yo,ら=ra,り=ri,る=ru,れ=re,ろ=ro,わ=wa,を=wo,が=ga,ぎ=gi,ぐ=gu,げ=ge,ご=go,ざ=za,じ=ji|zi,ず=zu,ぜ=ze,ぞ=zo,だ=da,ぢ=di,づ=du,で=de,ど=do,ば=ba,び=bi,ぶ=bu,べ=be,ぼ=bo,ぱ=pa,ぴ=pi,ぷ=pu,ぺ=pe,ぽ=po,ゔ=vu,ぁ=xa|la,ぃ=xi|li,ぅ=xu|lu,ぇ=xe|le,ぉ=xo|lo,ゃ=xya|lya,ゅ=xyu|lyu,ょ=xyo|lyo,ゎ=xwa|lwa,"+
+"しぇ=she|sye,じぇ=je|zye,ちぇ=che|tye,ふぁ=fa,ふぃ=fi,ふぇ=fe,ふぉ=fo,てぃ=thi,でぃ=dhi,うぃ=wi,うぇ=we,ゔぁ=va,ゔぃ=vi,ゔぇ=ve,ゔぉ=vo";
+const MAP={};
+B.split(",").forEach(p=>{const [k,v]=p.split("=");MAP[k]=v.split("|");});
+const Y={き:["ky"],ぎ:["gy"],し:["sh","sy"],じ:["j","zy","jy"],ち:["ch","ty","cy"],ぢ:["dy"],に:["ny"],ひ:["hy"],び:["by"],ぴ:["py"],み:["my"],り:["ry"]};
+const SM={ゃ:"a",ゅ:"u",ょ:"o"};
+for(const k in Y)for(const s in SM)MAP[k+s]=Y[k].map(x=>x+SM[s]);
+Object.assign(MAP,{"ー":["-"],"、":[","],"。":["."],"「":["["],"」":["]"],"・":["/"],"〜":["~"]});
+// 「てぃ」を「て+ぃ」(teli / texi)、「きゃ」を「き+ゃ」(kixya / kilya)のように分けて打つ方法も許可
+for(const k of Object.keys(MAP)){
+  if(k.length===2&&"ぁぃぅぇぉゃゅょゎ".includes(k[1])&&MAP[k[0]]&&MAP[k[1]])
+    MAP[k]=[...new Set([...MAP[k],...MAP[k[0]].flatMap(x=>MAP[k[1]].map(y=>x+y))])];
+}
+
+function one(s,i){
+  const two=s.substr(i,2);
+  if(MAP[two])return{src:two,c:MAP[two]};
+  const c=s[i];
+  if(c===undefined)return null;
+  if(c==="ん"){
+    const nx=s[i+1]===undefined?null:(s[i+1]==="っ"?{c:["k"]}:one(s,i+1));
+    const f=nx&&nx.c[0][0];
+    return(!f||/[aiueony]/.test(f))?{src:c,c:["nn","xn"]}:{src:c,c:["n","nn"],soft:true};
+  }
+  if(MAP[c])return{src:c,c:MAP[c]};
+  if(/^[\x20-\x7e]$/.test(c))return{src:c,c:[c]};
+  return null;
+}
+function tokenize(s){
+  const toks=[],bad=new Set();let i=0;
+  while(i<s.length){
+    if(s[i]==="っ"){
+      const nx=s[i+1]==="っ"?null:one(s,i+1);
+      const f=nx&&nx.c[0][0];
+      if(nx&&/[b-df-hj-mp-tv-z]/.test(f)){
+        toks.push({src:"っ"+nx.src,c:[...new Set(nx.c.flatMap(x=>[x[0]+x,...(x.startsWith("ch")?["t"+x]:[])]))]});
+        i+=1+nx.src.length;
+      }else{toks.push({src:"っ",c:["ltu","xtu"]});i++;}
+      continue;
+    }
+    const t=one(s,i);
+    if(!t){bad.add(s[i]);i++;continue;}
+    toks.push(t);i+=t.src.length;
+  }
+  return{toks,bad:[...bad]};
+}
+
+// ---- keylog2 生成 ----
+const pad=n=>String(n).padStart(2,"0");
+const fmt=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+const stamp=d=>fmt(d).replace(/[-:]/g,"").replace(" ","_");
+const newCounts=()=>Object.fromEntries(ORDER.map(k=>[k,0]));
+const newRaw=()=>({...newCounts(),...Object.fromEntries(SIDE.map(k=>[k,0]))});
+function rawRec(e){const k=SIDEMAP[e.code]||label(e.code);if(k)S.raw[k]=(S.raw[k]||0)+1;}
+function build(counts,end){
+  const total=ORDER.reduce((a,k)=>a+counts[k],0)+SIDE.reduce((a,k)=>a+(counts[k]||0),0);
+  const d1=ORDER.map(k=>`${k}: ${counts[k]}`).join(", ");
+  const d2=SIDE.map(k=>`${k}: ${counts[k]||0}`).join(", ");
+  return `/= ${fmt(end)} Keylog =/\r\n\r\n配列設定: JIS\r\n総キー押下イベント数: ${total}\r\n\r\n===\r\n\r\n[{${d1}}],\r\n[{${d2}}],\r\n[{}]\r\n\r\n/==\tend\t==/`;
+}
+function downloadBlob(blob,name){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+function download(text,name){downloadBlob(new Blob([text],{type:"text/plain;charset=utf-8"}),name);}
+
+// ---- 簡易 zip 作成(無圧縮) ----
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+function makeZip(files,date=new Date()){
+  const enc=new TextEncoder();
+  const dt=((date.getFullYear()-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate();
+  const tm=(date.getHours()<<11)|(date.getMinutes()<<5)|(date.getSeconds()>>1);
+  const chunks=[],cd=[];let off=0;
+  for(const f of files){
+    const name=enc.encode(f.name),data=enc.encode(f.text),crc=crc32(data);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,tm,true);lh.setUint16(12,dt,true);lh.setUint32(14,crc,true);
+    lh.setUint32(18,data.length,true);lh.setUint32(22,data.length,true);lh.setUint16(26,name.length,true);lh.setUint16(28,0,true);
+    chunks.push(new Uint8Array(lh.buffer),name,data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);
+    ch.setUint16(12,tm,true);ch.setUint16(14,dt,true);ch.setUint32(16,crc,true);
+    ch.setUint32(20,data.length,true);ch.setUint32(24,data.length,true);ch.setUint16(28,name.length,true);
+    ch.setUint32(42,off,true);
+    cd.push(new Uint8Array(ch.buffer),name);
+    off+=30+name.length+data.length;
+  }
+  const cdSize=cd.reduce((a,x)=>a+x.length,0);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);
+  end.setUint32(12,cdSize,true);end.setUint32(16,off,true);
+  return new Blob([...chunks,...cd,new Uint8Array(end.buffer)],{type:"application/zip"});
+}
+
+// ---- 表示用の文と入力用の文の対応づけ ----
+function tokenSegs(toks){let o=0;return toks.map(t=>{const g={t:t.src,rs:o,re:o+t.src.length,unit:true};o=g.re;return g;});}
+function align(read,disp){
+  const norm=disp.replace(/[\u30A1-\u30F6]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
+  const isK=ch=>/[\u3400-\u9FFF\uF900-\uFAFF々〇〆]/.test(ch);
+  const runs=[];
+  for(let i=0;i<norm.length;i++){
+    const k=isK(norm[i]),l=runs[runs.length-1];
+    if(l&&l.k===k){l.t+=disp[i];l.n+=norm[i];}else runs.push({k,t:disp[i],n:norm[i]});
+  }
+  const segs=[];let ptr=0,pend="",hit=0;
+  const flush=end=>{if(pend){segs.push({t:pend,rs:ptr,re:end,unit:true});pend="";}};
+  for(const r of runs){
+    if(r.k){pend+=r.t;continue;}
+    let L=r.n.length,idx=-1;
+    for(;L>0;L--){idx=read.indexOf(r.n.slice(0,L),ptr+(pend?1:0));if(idx>=0)break;}
+    if(idx<0){pend+=r.t;continue;}
+    flush(idx);
+    segs.push({t:r.t.slice(0,L),rs:idx,re:idx+L});hit++;
+    ptr=idx+L;pend=r.t.slice(L);
+  }
+  flush(read.length);
+  if(!hit){
+    const n=disp.length,m=read.length;
+    return Array.from({length:n},(_,i)=>({t:disp[i],rs:Math.floor(i*m/n),re:Math.floor((i+1)*m/n),unit:true}));
+  }
+  const last=segs[segs.length-1];
+  if(last.unit)last.re=Math.max(last.re,read.length);
+  return segs;
+}
+
+// ---- ゲーム ----
+let S=null,R=null,counts=newCounts(),lastRaw="",lastDisp="";
+
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])).replace(/ /g,"␣");}
+function lane(el,a,b,c){
+  const inn=el.firstElementChild;
+  inn.innerHTML=`<span class="done">${esc(a)}</span><span class="cur">${esc(b)}</span><span class="rest">${esc(c)}</span>`;
+  const x=inn.querySelector(".cur").getBoundingClientRect().left-inn.getBoundingClientRect().left;
+  inn.style.transform=`translateX(${Math.min(0,el.clientWidth*0.3-x)}px)`;
+}
+function stats(){
+  const s=S;if(!s)return;
+  const el=s.t0?(performance.now()-s.t0)/1000:0;
+  $("#t").textContent=el.toFixed(1)+"s";
+  $("#c").textContent=s.hit;
+  $("#m").textContent=s.miss;
+  $("#a").textContent=(s.hit+s.miss?Math.round(s.hit/(s.hit+s.miss)*100):100)+"%";
+  $("#k").textContent=el>0?Math.round(s.hit/el*60):0;
+}
+const secLabel=i=>S.meta[i].id!==null?"{"+S.meta[i].id+"}":"先頭";
+const sufOf=()=>S.multi?"_"+(S.meta[S.sec].id!==null?S.meta[S.sec].id:"0"):"";
+function render(){
+  const t=S.toks[S.idx];
+  const cur=t?(t.c.find(x=>x.startsWith(S.pre))||t.c[0]):"";
+  const rest=cur.slice(S.pre.length)+S.toks.slice(S.idx+1).map(x=>x.c[0]).join("");
+  lane($("#rom"),S.doneStr+S.pre,rest.slice(0,1),rest.slice(1));
+  const rd=S.toks.slice(0,S.idx).reduce((a,x)=>a+x.src.length,0);
+  let a="",b="",c="";
+  for(const g of S.segs){
+    if(g.re<=rd){a+=g.t;continue;}
+    if(g.rs>rd){c+=g.t;continue;}
+    if(g.unit)b=g.t;
+    else{const k=rd-g.rs;a+=g.t.slice(0,k);b=g.t[k]||"";c+=g.t.slice(k+1);}
+  }
+  lane($("#src"),a,b,c);
+  const m=S.meta[S.sec];
+  $("#bar").style.width=(Math.min(S.idx,m.to)-m.from)/(m.to-m.from)*100+"%";
+  $("#secBox").classList.toggle("hidden",!S.multi);
+  if(S.multi)$("#secL").textContent=`${secLabel(S.sec)} ${S.sec+1}/${S.meta.length}`;
+  stats();
+}
+function msg(t,bad){const m=$("#msg");m.textContent=t;m.classList.toggle("bad",!!bad);}
+function save(){
+  try{localStorage.setItem("keylog2-draft",JSON.stringify({counts,start:S.start.getTime(),last:Date.now(),suf:sufOf()}));}catch(e){}
+}
+
+const cleanTxt=t=>t.replace(/[\r\n]+/g,"").replace(/\t/g," ").normalize("NFKC");
+// {1}{2} のような中括弧つき数字で区間に分ける
+function splitSec(str){
+  const parts=[];let last=0,id=null,m;const re=/\{(\d+)\}/g;
+  while((m=re.exec(str))){parts.push({id,text:str.slice(last,m.index)});id=m[1];last=m.index+m[0].length;}
+  parts.push({id,text:str.slice(last)});
+  return parts;
+}
+
+function startGame(raw,dispRaw=""){
+  const kata=t=>t.replace(/[\u30A1-\u30F6]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
+  const secs=splitSec(cleanTxt(raw)).map(p=>({id:p.id,text:kata(p.text).trim()})).filter(p=>p.text);
+  if(!secs.length){alert(dispRaw.trim()?"入力用(ひらがな)の文も入力してください。":"文字を入力してください。");return;}
+  const toks=[],bad=new Set(),meta=[];
+  for(const sc of secs){
+    const r=tokenize(sc.text);r.bad.forEach(x=>bad.add(x));
+    meta.push({id:sc.id,from:toks.length,to:toks.length+r.toks.length,read:sc.text});
+    toks.push(...r.toks);
+  }
+  if(bad.size){alert("打てない文字が含まれています: "+[...bad].join(" ")+"\n漢字などは読み(ひらがな)に直してください。");return;}
+  lastRaw=raw;lastDisp=dispRaw;
+  // 表示用の文(区間の構成が入力用と同じなら区間ごとに対応づけ)
+  const dsecs=dispRaw.trim()?splitSec(cleanTxt(dispRaw)).map(p=>({id:p.id,text:p.text.trim()})).filter(p=>p.text):[];
+  let segs;
+  if(!dsecs.length)segs=tokenSegs(toks);
+  else if(dsecs.length===meta.length&&dsecs.every((d,i)=>d.id===meta[i].id)){
+    segs=[];let off=0;
+    meta.forEach((m,i)=>{align(m.read,dsecs[i].text).forEach(g=>segs.push({...g,rs:g.rs+off,re:g.re+off}));off+=m.read.length;});
+  }else segs=align(meta.map(m=>m.read).join(""),dsecs.map(d=>d.text).join(""));
+  counts=newCounts();
+  S={toks,segs,meta,sec:0,results:[],raw:newRaw(),multi:meta.length>1||meta[0].id!==null,idx:0,pre:"",doneStr:"",hit:0,miss:0,t0:0,sh:null,start:new Date()};
+  $("#setup").classList.add("hidden");$("#result").classList.add("hidden");$("#game").classList.remove("hidden");
+  if(document.activeElement)document.activeElement.blur();
+  msg("IME は半角英数にしてください。Esc で中断して出力します。");
+  render();
+}
+
+// 現在の区間を確定して keylog2 を保存
+function sectionResult(){
+  const el=S.t0?(performance.now()-S.t0)/1000:0;
+  const name=`keylog_${stamp(S.start)}${sufOf()}.keylog2`;
+  const end=new Date();
+  const out=build(counts,end);
+  const total=ORDER.reduce((a,k)=>a+counts[k],0);
+  const rawOut=build(S.raw,end),rawName=name.replace(/\.keylog2$/,"_raw.keylog2");
+  const rawTotal=ORDER.reduce((a,k)=>a+S.raw[k],0)+SIDE.reduce((a,k)=>a+S.raw[k],0);
+  S.results.push({label:S.multi?secLabel(S.sec):"",out,name,el,total,hit:S.hit,miss:S.miss,rawOut,rawName,rawTotal,start:S.start,end,counts:{...counts},raw:{...S.raw}});
+}
+
+function onKeyDown(e){
+  if(!S)return;
+  if(!e.repeat)rawRec(e);   // B用: 正誤に関わらず押した全キーを記録
+  if(e.key==="Process"||e.isComposing||e.keyCode===229){msg("IME がオンです。半角英数に切り替えてください。",true);return;}
+  if(e.key==="Escape"){e.preventDefault();finish(true);return;}
+  if(["Shift","Control","Alt","Meta","CapsLock","AltGraph"].includes(e.key)){
+    if(e.key==="Shift"&&!e.repeat)S.sh={code:e.code,used:false};
+    return;
+  }
+  if(e.ctrlKey||e.altKey||e.metaKey)return;
+  e.preventDefault();
+  if(e.repeat||e.key.length!==1)return;
+  if(!S.t0){S.t0=performance.now();S.start=new Date();}   // 区間の最初のキー入力で計測開始
+  let t=S.toks[S.idx],p=S.pre+e.key;
+  let hit=t.c.filter(x=>x.startsWith(p));
+  // 「ん」を n 1回で打つ場合(次が子音): 次のキーが nn の2つ目でなければ「ん」を確定し、次の文字として判定
+  if(!hit.length&&t.soft&&S.pre==="n"){
+    const nt=S.toks[S.idx+1];
+    if(nt&&nt.c.some(x=>x.startsWith(e.key))){
+      S.doneStr+="n";S.pre="";S.idx++;
+      t=nt;p=e.key;hit=t.c.filter(x=>x.startsWith(p));
+    }
+  }
+  if(!hit.length){
+    S.miss++;
+    const g=$("#game");g.classList.add("bad");setTimeout(()=>g.classList.remove("bad"),140);
+    msg(/[A-Z]/.test(e.key)&&!/[A-Z]/.test(t.c[0])?"ミス(Shift / CapsLock を確認)・記録されません":"ミス・記録されません",true);
+    stats();return;
+  }
+  // 正しい打鍵のみ記録
+  const lb=label(e.code);
+  if(lb)counts[lb]++;
+  if(e.shiftKey){
+    if(!S.sh)S.sh={code:"ShiftLeft",used:false};
+    if(!S.sh.used){counts[label(S.sh.code)||"LShift"]++;S.sh.used=true;}
+  }
+  S.hit++;S.pre=p;
+  msg("");
+  if(hit.includes(p)&&!(t.soft&&p==="n")){
+    S.doneStr+=p;S.pre="";S.idx++;
+    if(S.idx>=S.meta[S.sec].to){
+      const prev=secLabel(S.sec);
+      sectionResult();
+      if(S.sec+1>=S.meta.length){render();finish(false);return;}
+      // 次の区間へ: 記録と各数値をリセット(計測は次の最初のキー入力から)
+      S.sec++;counts=newCounts();S.raw=newRaw();S.hit=0;S.miss=0;S.t0=0;S.start=new Date();
+      if(S.sh)S.sh.used=false;
+      save();render();
+      msg(`${prev} を保存しました。続けて ${secLabel(S.sec)} を打ってください。`);
+      return;
+    }
+  }
+  save();render();
+}
+function onKeyUp(e){if(S&&e.key==="Shift")S.sh=null;}
+
+function finish(abort){
+  if(!S)return;
+  if(abort&&(ORDER.some(k=>counts[k]>0)||ORDER.some(k=>S.raw[k]>0)||SIDE.some(k=>S.raw[k]>0)))sectionResult();
+  const s=S;S=null;R=s.results;
+  try{localStorage.removeItem("keylog2-draft");}catch(e){}
+  $("#rtitle").textContent=abort?"中断しました":"完了しました";
+  const accOf=r=>r.hit+r.miss?r.hit/(r.hit+r.miss)*100:100;
+  const kpmOf=r=>r.el>0?r.hit/r.el*60:0;
+  let html=R.length?R.map((r,i)=>{
+    const cells=[["時間",r.el.toFixed(1)+"s"],["正打",r.hit],["ミス(除外)",r.miss],["正確率",Math.round(accOf(r))+"%"],["打鍵/分",Math.round(kpmOf(r))],["A 記録した打鍵",r.total],["B 全キー押下",r.rawTotal]];
+    return`<div class="rb">${r.label?`<h2>区間 ${escH(r.label)}</h2>`:""}
+      <div class="stats">${cells.map(([a,b])=>`<div>${a}<b>${b}</b></div>`).join("")}</div>
+      <p class="meta">A: ${escH(r.name)}<br>B: ${escH(r.rawName)}</p>
+      <pre>${escH(r.out)}</pre>
+      <div class="row"><button class="dlb" data-i="${i}">A(正打)をダウンロード</button><button class="ghost dlr1" data-i="${i}">B(全キー)をダウンロード</button></div></div>`;
+  }).join(""):'<p class="note">記録された打鍵がありません。</p>';
+  if(R.length>=2){
+    const n=R.length,sum=f=>R.reduce((a,r)=>a+f(r),0);
+    const T=sum(r=>r.el),H=sum(r=>r.hit),M=sum(r=>r.miss);
+    const d1=v=>(Math.round(v*10)/10).toString();
+    const row=(nm,c)=>`<tr><td>${nm}</td>${c.map(x=>`<td>${x}</td>`).join("")}</tr>`;
+    html+=`<div class="rb"><h2>全区間の合計・平均(${n}区間)</h2><div class="tw"><table class="sumt"><thead><tr><th></th><th>時間</th><th>正打</th><th>ミス</th><th>正確率</th><th>打鍵/分</th><th>A 記録した打鍵</th><th>B 全キー押下</th></tr></thead><tbody>`
+      +row("合計",[T.toFixed(1)+"s",H,M,Math.round(H+M?H/(H+M)*100:100)+"%",Math.round(T>0?H/T*60:0),sum(r=>r.total),sum(r=>r.rawTotal)])
+      +row("平均",[(T/n).toFixed(1)+"s",d1(H/n),d1(M/n),Math.round(sum(accOf)/n)+"%",Math.round(sum(kpmOf)/n),d1(sum(r=>r.total)/n),d1(sum(r=>r.rawTotal)/n)])
+      +`</tbody></table></div><p class="note">合計の正確率・打鍵/分は全区間をまとめて計算、平均は各区間の値の平均です。</p></div>`;
+  }
+  $("#rbody").innerHTML=html;
+  $("#rbody").querySelectorAll(".dlb").forEach(b=>b.onclick=()=>{const r=R[+b.dataset.i];download(r.out,r.name);});
+  $("#rbody").querySelectorAll(".dlr1").forEach(b=>b.onclick=()=>{const r=R[+b.dataset.i];download(r.rawOut,r.rawName);});
+  $("#dl").classList.toggle("hidden",!R.length);
+  $("#dlOpt").classList.toggle("hidden",R.length<2);
+  $("#dlMA").classList.toggle("hidden",R.length<2);
+  $("#dlMB").classList.toggle("hidden",R.length<2);
+  $("#game").classList.add("hidden");$("#result").classList.remove("hidden");
+  if(R.length){loadFromR("A");loadFromR("B");cmpSel=0;renderCmp();switchTab("cmp");}   // 比較へ自動転送
+}
+
+document.addEventListener("keydown",onKeyDown);
+document.addEventListener("keyup",onKeyUp);
+$("#run").onclick=()=>startGame($("#text").value,$("#disp").value);
+// 全区画のログを足し合わせて1つの keylog2(A・B)にする
+function mergeResults(){
+  const sumObj=k=>{const o=newRaw();R.forEach(r=>{for(const key in r[k])o[key]=(o[key]||0)+r[k][key];});return o;};
+  const end=R[R.length-1].end,base=`keylog_${stamp(R[0].start)}`;
+  return{name:base+".keylog2",rawName:base+"_raw.keylog2",out:build(sumObj("counts"),end),rawOut:build(sumObj("raw"),end),base};
+}
+$("#dlMA").onclick=()=>{if(R&&R.length>1){const m=mergeResults();download(m.out,m.name);}};
+$("#dlMB").onclick=()=>{if(R&&R.length>1){const m=mergeResults();download(m.rawOut,m.rawName);}};
+$("#dl").onclick=()=>{
+  if(!R||!R.length)return;
+  const mode=($('input[name="dlmode"]:checked')||{}).value;
+  const files=[];let zipName=`keylog_${stamp(R[0].start)}.zip`;
+  if(mode==="merge"&&R.length>1){
+    const m=mergeResults();
+    files.push({name:m.name,text:m.out},{name:m.rawName,text:m.rawOut});
+    zipName=`${m.base}_all.zip`;
+  }else R.forEach(r=>files.push({name:r.name,text:r.out},{name:r.rawName,text:r.rawOut}));
+  downloadBlob(makeZip(files),zipName);
+};
+$("#again").onclick=()=>startGame(lastRaw,lastDisp);
+$("#back").onclick=()=>{$("#result").classList.add("hidden");$("#setup").classList.remove("hidden");$("#text").focus();};
+setInterval(stats,100);
+
+// ---- 比較 ----
+let CA=[],CB=[],cmpSel=0;
+const escH=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function parseLog(text,name){
+  const time=(/\/=\s*(.+?)\s*Keylog\s*=\//.exec(text)||[])[1]||"";
+  const layout=(/配列設定:\s*(.+?)\s*$/m.exec(text)||[])[1]||"";
+  const total=+((/総キー押下イベント数:\s*(\d+)/.exec(text)||[])[1]||0);
+  const body=text.includes("===")?text.split("===").slice(1).join("==="):text;
+  const map={},order=[];
+  for(const m of body.matchAll(/\[\{([\s\S]*?)\}\]/g)){
+    for(const q of m[1].matchAll(/(?:^|, )(.+?): (\d+)(?=, |$)/g)){
+      const k=q[1].trim();
+      if(!(k in map)){order.push(k);map[k]=0;}
+      map[k]+=+q[2];
+    }
+  }
+  return order.length?{name,time,layout,total,map,order}:null;
+}
+const sumOf=o=>Object.values(o.map).reduce((a,b)=>a+b,0);
+function showSlot(id){
+  const arr=id==="A"?CA:CB;
+  $("#fn"+id).textContent=!arr.length?"未選択(ここにファイルをドロップ)":arr.length===1?`${arr[0].name}(${arr[0].time||"日時不明"}・総数 ${sumOf(arr[0])})`:`${arr.length}件: `+arr.map(p=>p.name).join(" / ");
+}
+async function loadFiles(id,files){
+  const list=[...files].sort((x,y)=>x.name.localeCompare(y.name,"ja",{numeric:true}));
+  const out=[];
+  for(const f of list){
+    const p=parseLog(await f.text(),f.name);
+    if(!p){alert("keylog2として読み込めませんでした: "+f.name);continue;}
+    const m=/_(\d+)(?:_raw)?\.keylog2$/i.exec(f.name);
+    p.label=m?"{"+m[1]+"}":"";
+    out.push(p);
+  }
+  if(!out.length)return;
+  if(id==="A")CA=out;else CB=out;
+  cmpSel=0;showSlot(id);renderCmp();
+}
+["A","B"].forEach(id=>{
+  const slot=$("#slot"+id),inp=$("#file"+id);
+  $("#pick"+id).onclick=()=>inp.click();
+  inp.onchange=()=>{loadFiles(id,inp.files);inp.value="";};
+  slot.ondragover=e=>{e.preventDefault();slot.classList.add("over");};
+  slot.ondragleave=()=>slot.classList.remove("over");
+  slot.ondrop=e=>{e.preventDefault();slot.classList.remove("over");loadFiles(id,e.dataTransfer.files);};
+});
+// 直前のタイピング結果(区間ごと)を A / B に読み込む
+function loadFromR(id){
+  const arr=R.map(r=>Object.assign(parseLog(id==="A"?r.out:r.rawOut,id==="A"?r.name:r.rawName),{label:r.label}));
+  if(id==="A")CA=arr;else CB=arr;
+  showSlot(id);
+}
+function useLast(id){
+  if(!R||!R.length){alert("直前のタイピング結果がありません。先にタイピングを行うか、ファイルを選択してください。");return;}
+  loadFromR(id);cmpSel=0;renderCmp();
+}
+$("#lastA").onclick=()=>useLast("A");
+$("#lastB").onclick=()=>useLast("B");
+
+function combine(arr,avg){
+  const map={},order=[];
+  arr.forEach(o=>o.order.forEach(k=>{if(!(k in map)){map[k]=0;order.push(k);}map[k]+=o.map[k]||0;}));
+  if(avg)for(const k of order)map[k]/=arr.length;
+  return{name:`${avg?"平均":"合計"}(${arr.length}区間)`,time:"",layout:arr[0].layout,total:0,map,order,synthetic:true};
+}
+function viewsOf(){
+  const n=Math.min(CA.length,CB.length),v=[];
+  for(let i=0;i<n;i++)v.push({label:CA[i].label||CB[i].label||(n>1?`区間 ${i+1}`:"全体"),a:CA[i],b:CB[i]});
+  if(n>=2){
+    const a=CA.slice(0,n),b=CB.slice(0,n);
+    v.push({label:"合計",a:combine(a,false),b:combine(b,false)});
+    v.push({label:"平均",a:combine(a,true),b:combine(b,true)});
+  }
+  return v;
+}
+function renderCmp(){
+  const V=viewsOf();
+  $("#cres").classList.toggle("hidden",!V.length);
+  $("#chint").classList.toggle("hidden",!!V.length);
+  $("#toResult").classList.toggle("hidden",!(R&&R.length));
+  if(!V.length)return;
+  if(cmpSel>=V.length)cmpSel=0;
+  $("#ctabs").innerHTML=V.length>1?V.map((x,i)=>`<button class="${i===cmpSel?"on":"ghost"}" data-i="${i}">${escH(x.label)}</button>`).join(""):"";
+  $("#ctabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{cmpSel=+b.dataset.i;renderCmp();});
+  const nt=$("#cnote");
+  nt.classList.toggle("hidden",CA.length===CB.length);
+  nt.textContent=CA.length===CB.length?"":`A は ${CA.length} 件、B は ${CB.length} 件のため、先頭から ${Math.min(CA.length,CB.length)} 区間を比較しています。`;
+  const {a:A,b:B}=V[cmpSel];
+  const sa=sumOf(A),sb=sumOf(B);
+  const keys=[...A.order];B.order.forEach(k=>{if(!keys.includes(k))keys.push(k);});
+  const pct=$("#cmode").value==="pct";
+  const all=keys.map((k,i)=>{
+    const ra=A.map[k]||0,rb=B.map[k]||0;
+    return{k,i,ra,rb,a:pct?(sa?ra/sa*100:0):ra,b:pct?(sb?rb/sb*100:0):rb,d:0};
+  });
+  all.forEach(r=>r.d=r.b-r.a);
+  const num=v=>Number.isInteger(v)?String(v):v.toFixed(1);
+  const minSum=all.reduce((t,r)=>t+Math.min(r.ra,r.rb),0);
+  const ovCount=sa+sb?2*minSum/(sa+sb)*100:0;
+  const ovDist=sa&&sb?all.reduce((t,r)=>t+Math.min(r.ra/sa,r.rb/sb),0)*100:0;
+  const eq=(x,y)=>Math.abs(x-y)<1e-9;
+  const same=all.filter(r=>(r.ra||r.rb)&&eq(r.ra,r.rb)).length;
+  const used=all.filter(r=>r.ra||r.rb).length;
+  $("#csum").innerHTML=[["A 総数",num(sa)],["B 総数",num(sb)],["総数の差(B−A)",(sb-sa>0?"+":"")+num(sb-sa)],["実数の重なり率",ovCount.toFixed(1)+"%"],["割合の重なり率",ovDist.toFixed(1)+"%"],["完全一致キー",`${same} / ${used}`]]
+    .map(([x,y])=>`<div>${x}<b>${y}</b></div>`).join("");
+  const info=(o,n)=>o.synthetic?`${n}: ${escH(o.name)}`:`${n}: ${escH(o.name)}(${escH(o.time||"日時不明")} / 配列 ${escH(o.layout||"不明")} / ヘッダ総数 ${o.total} / 項目合計 ${sumOf(o)})`;
+  $("#cmeta").innerHTML=info(A,"A")+"<br>"+info(B,"B")+"<br>重なり率 = 2×Σmin(A,B)÷(A総数+B総数)。割合の重なり率は、各ログを総数で割った分布どうしの重なりです。";
+  let rows=all;
+  if($("#chide").checked)rows=rows.filter(r=>r.ra||r.rb);
+  const th=pct?0.005:0.5;
+  if($("#cdiff").checked)rows=rows.filter(r=>Math.abs(r.d)>=th);
+  if($("#csort").value==="diff")rows=[...rows].sort((x,y)=>Math.abs(y.d)-Math.abs(x.d)||x.i-y.i);
+  const f=v=>pct?v.toFixed(2)+"%":num(v);
+  const max=Math.max(1e-9,...rows.map(r=>Math.max(r.a,r.b)));
+  const body=rows.map(r=>{
+    const dd=Math.abs(r.d)<th?0:r.d;
+    const cls=dd>0?"pos":dd<0?"neg":"zero";
+    const ds=dd===0?"0":(dd>0?"+":"−")+f(Math.abs(r.d));
+    return`<tr><td>${escH(r.k)}</td><td>${f(r.a)}</td><td>${f(r.b)}</td><td class="${cls}">${ds}</td>
+      <td class="bars"><div class="b a" style="width:${r.a/max*100}%"></div><div class="b c" style="width:${r.b/max*100}%"></div></td></tr>`;
+  }).join("");
+  $("#ctable").innerHTML=`<table><thead><tr><th>キー</th><th>A</th><th>B</th><th>差(B−A)</th><th style="text-align:left">■ A　■ B</th></tr></thead><tbody>${body||'<tr><td colspan="5">該当するキーがありません</td></tr>'}</tbody></table>`;
+}
+["cmode","csort","chide","cdiff"].forEach(id=>$("#"+id).onchange=renderCmp);
+
+function switchTab(t){
+  if(S&&t==="cmp")return;
+  $("#vType").classList.toggle("hidden",t==="cmp");
+  $("#vCmp").classList.toggle("hidden",t!=="cmp");
+  $("#tabType").classList.toggle("on",t!=="cmp");
+  $("#tabCmp").classList.toggle("on",t==="cmp");
+}
+$("#tabType").onclick=()=>switchTab("type");
+$("#toResult").onclick=()=>switchTab("type");
+$("#tabCmp").onclick=()=>switchTab("cmp");
+
+// 中断データ(ブラウザ内に保存された途中経過)の復元
+try{
+  const d=JSON.parse(localStorage.getItem("keylog2-draft")||"null");
+  if(d&&d.counts&&Object.values(d.counts).some(v=>v>0)){
+    const b=$("#resume");b.classList.remove("hidden");
+    b.onclick=()=>{
+      const c=Object.assign(newCounts(),d.counts);
+      download(build(c,new Date(d.last)),`keylog_${stamp(new Date(d.start))}${d.suf||""}.keylog2`);
+    };
+  }
+}catch(e){}
+</script>
+</body>
+</html>
